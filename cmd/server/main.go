@@ -27,8 +27,8 @@ func main() {
 	r := chi.NewRouter()
 	r.Post("/ingest", ingest.Handler(db))
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	log.Println("listening on :2666")
