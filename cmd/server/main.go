@@ -1,6 +1,7 @@
 package main
 
 import (
+	"STSVLogs/internal/config"
 	"STSVLogs/internal/ingest"
 	"STSVLogs/internal/query"
 	"STSVLogs/internal/store"
@@ -26,6 +27,7 @@ func main() {
 	}
 	defer db.Close()
 	q := &query.Handler{Store: db}
+	cfg := &config.Handler{Store: db}
 	r := chi.NewRouter()
 	r.Post("/ingest", ingest.Handler(db))
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -34,6 +36,9 @@ func main() {
 	})
 	r.Get("/api/stats/overview", q.StatsOverview)
 	r.Get("/api/events", q.ListEvents)
+	r.Get("/update-manifest.json", cfg.GetManifest)
+	r.Get("/api/config/version", cfg.GetVersion)
+	r.Put("/api/config/version", cfg.UpdateVersion)
 
 	log.Println("listening on :2666")
 	log.Fatal(http.ListenAndServe(":2666", r))

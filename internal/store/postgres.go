@@ -123,6 +123,20 @@ func (s *Store) ListEvents(ctx context.Context, category string, page, limit int
 	return events, total, nil
 }
 
+func (s *Store) GetConfig(ctx context.Context, key string) (string, error) {
+	var value string
+	err := s.pool.QueryRow(ctx, `SELECT value FROM config WHERE key = $1`, key).Scan(&value)
+	return value, err
+}
+
+func (s *Store) SetConfig(ctx context.Context, key, value string) error {
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO config (key, value) VALUES ($1, $2)
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+		key, value)
+	return err
+}
+
 func (s *Store) Close() {
 	s.pool.Close()
 }
