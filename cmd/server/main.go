@@ -32,8 +32,8 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"status":"ok"}`))
 	})
-	r.Get("api/stats/overview", q.StatsOverview)
-	r.Get("api/events", q.ListEvents)
+	r.Get("/api/stats/overview", q.StatsOverview)
+	r.Get("/api/events", q.ListEvents)
 
 	log.Println("listening on :2666")
 	log.Fatal(http.ListenAndServe(":2666", r))
