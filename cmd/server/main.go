@@ -9,9 +9,11 @@ import (
 	"os"
 
 	"github.com/go-chi/chi"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	godotenv.Load()
 	//连接数据库
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
