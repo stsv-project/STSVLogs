@@ -38,6 +38,91 @@ func (s *Store) InsertEvent(ctx context.Context, evt model.TelemetryEvent) error
 	return err
 }
 
+// StatsOverview 返回总览统计
+func (s *Store) StatsOverview(ctx context.Context) (map[string]interface{}, error) {
+	var total int
+	err := s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM events`).Scan(&total)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := s.pool.Query(ctx, `
+        SELECT category, COUNT(*) as cnt
+        FROM events
+        GROUP BY category
+        ORDER BY cnt DESC
+    `)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	categories := make(map[string]int)
+	for rows.Next() {
+		var cat string
+		var cnt int
+		if err := rows.Scan(&cat, &cnt); err != nil {
+			return nil, err
+		}
+		categories[cat] = cnt
+	}
+
+	return map[string]interface{}{
+		"total_events": total,
+		"categories":   categories,
+	}, nil
+}
+
+// ListEvents 分页查询事件
+func (s *Store) ListEvents(ctx context.Context, category string, page, limit int) ([]model.TelemetryEvent, int, error) {
+	var total int
+	args := []interface{}{}
+	where := ""
+
+	if category != "" {
+		where = "WHERE category = $1"
+		args = append(args, category)
+	}
+
+	err := s.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM events `+where, args...,
+	).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
+	queryArgs := append(args, limit, offset)
+	queryIdx := len(args)
+
+	rows, err := s.pool.Query(ctx,
+		`SELECT applicant_id, event_name, request_id, category, timestamp_utc, properties, payload
+         FROM events `+where+
+			` ORDER BY timestamp_utc DESC
+         LIMIT $`+fmt.Sprintf("%d", queryIdx+1)+
+			` OFFSET $`+fmt.Sprintf("%d", queryIdx+2),
+		queryArgs...,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var events []model.TelemetryEvent
+	for rows.Next() {
+		var evt model.TelemetryEvent
+		if err := rows.Scan(
+			&evt.ApplicantID, &evt.EventName, &evt.RequestID,
+			&evt.Category, &evt.TimestampUtc, &evt.Properties, &evt.Payload,
+		); err != nil {
+			return nil, 0, err
+		}
+		events = append(events, evt)
+	}
+
+	return events, total, nil
+}
+
 func (s *Store) Close() {
 	s.pool.Close()
 }

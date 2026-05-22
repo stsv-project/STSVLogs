@@ -1,4 +1,4 @@
-const BASE = "https://stsvlogs.hypd.asia";
+const BASE = "";
 
 export async function get<T>(path:string):
 Promise<T> {
