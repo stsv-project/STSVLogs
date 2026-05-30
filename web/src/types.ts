@@ -18,6 +18,7 @@ export interface RunHistoryOverview {
   total_abandoned: number;
   characters: Record<string, number>;
   character_wins: Record<string, number>;
+  character_abandoned: Record<string, number>;
   floors: Record<string, number>;
   ascensions: Record<string, number>;
   game_modes: Record<string, number>;

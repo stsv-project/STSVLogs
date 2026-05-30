@@ -285,19 +285,22 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 
 	characters := make(map[string]int)
 	characterWins := make(map[string]int)
+	characterAbandoned := make(map[string]int)
 	for charRows.Next() {
 		var name string
-		var cnt, wins int
-		if err := charRows.Scan(&name, &cnt, &wins); err != nil {
+		var cnt, wins, abandoned int
+		if err := charRows.Scan(&name, &cnt, &wins, &abandoned); err != nil {
 			return nil, err
 		}
 		// Clean up STSVWB_CHARACTER_ prefix
 		name = strings.Replace(name, "STSVWB_CHARACTER_", "", 1)
 		characters[name] = cnt
 		characterWins[name] = wins
+		characterAbandoned[name] = abandoned
 	}
 	result["characters"] = characters
 	result["character_wins"] = characterWins
+	result["character_abandoned"] = characterAbandoned
 
 	// 楼层分布
 	floors, err := s.groupCount(ctx,
