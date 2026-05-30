@@ -147,6 +147,69 @@ func (s *Store) DailyTrend(ctx context.Context, days int) ([]map[string]interfac
 	return trend, nil
 }
 
+// DiagnosticsOverview returns exception type ranking, capture source distribution, and per-version exception counts
+func (s *Store) DiagnosticsOverview(ctx context.Context) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+
+	var total int
+	if err := s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE category = 'Diagnostics'`).Scan(&total); err != nil {
+		return nil, err
+	}
+	result["total_diagnostics"] = total
+
+	exceptionTypes, err := s.groupCount(ctx,
+		`SELECT properties->>'exception_type', COUNT(*) FROM events WHERE category = 'Diagnostics' GROUP BY properties->>'exception_type' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["exception_types"] = exceptionTypes
+
+	captureSources, err := s.groupCount(ctx,
+		`SELECT properties->>'capture_source', COUNT(*) FROM events WHERE category = 'Diagnostics' GROUP BY properties->>'capture_source' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["capture_sources"] = captureSources
+
+	byVersions, err := s.groupCount(ctx,
+		`SELECT properties->>'game_version', COUNT(*) FROM events WHERE category = 'Diagnostics' GROUP BY properties->>'game_version' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["by_game_version"] = byVersions
+
+	return result, nil
+}
+
+// DiagnosticsTrend returns daily exception counts for last N days
+func (s *Store) DiagnosticsTrend(ctx context.Context, days int) ([]map[string]interface{}, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT DATE(timestamp_utc) AS date, COUNT(*) AS cnt
+		FROM events
+		WHERE category = 'Diagnostics' AND timestamp_utc >= $1
+		GROUP BY DATE(timestamp_utc)
+		ORDER BY date ASC
+	`, time.Now().UTC().AddDate(0, 0, -days))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trend []map[string]interface{}
+	for rows.Next() {
+		var date time.Time
+		var cnt int
+		if err := rows.Scan(&date, &cnt); err != nil {
+			return nil, err
+		}
+		trend = append(trend, map[string]interface{}{
+			"date":  date.Format("2006-01-02"),
+			"count": cnt,
+		})
+	}
+	return trend, nil
+}
+
 // ListEvents returns paginated events with optional category filter
 func (s *Store) ListEvents(ctx context.Context, category string, page, limit int) ([]model.TelemetryEvent, int, error) {
 	var total int

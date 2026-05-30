@@ -8,6 +8,13 @@ export interface StatsOverview {
   os_names: Record<string, number>;
 }
 
+export interface DiagnosticsOverview {
+  total_diagnostics: number;
+  exception_types: Record<string, number>;
+  capture_sources: Record<string, number>;
+  by_game_version: Record<string, number>;
+}
+
 export interface TelemetryEvent {
   applicantId: string;
   eventName: string;

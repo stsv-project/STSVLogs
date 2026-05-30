@@ -7,6 +7,7 @@ STSVLogs 是 STSVWB 模组的遥测数据接收与可视化服务，同时提供
 - 遥测上报入口：`POST /ingest`
 - 更新清单入口：`GET /update-manifest.json`
 - 仪表盘入口：`/`（前端 SPA）
+- 诊断面板入口：`/diagnostics`
 
 ## 架构规则
 
@@ -20,7 +21,7 @@ internal/model/*.go         — 模型层：数据结构定义
 ```
 
 - **Handler 不得包含 SQL 字符串**。所有数据库访问通过 `store.Store` 的方法完成。
-- **Store 不得引用 `net/http`**。数据层只依赖 `context.Context` 和 `database/sql` 相关类型。
+- **Store 不得引用 `net/http`**。数据层只依赖 `context.Context` 和数据库驱动。
 - **路由注册统一在 `cmd/server/main.go`**，不分散到各包。
 - **新功能应先扩展 Store 方法，再写 Handler，最后注册路由**。
 
@@ -43,6 +44,22 @@ internal/model/*.go         — 模型层：数据结构定义
 - 遥测和数据查询端点使用 `/api/` 前缀。
 - 管理端点使用 `/api/admin/` 或通过 auth middleware 保护。
 - 更新清单端点直接使用 `/update-manifest.json`（配合 RitsuLib 更新协议）。
+
+### 端点列表
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/healthz` | 健康检查 |
+| POST | `/ingest` | 遥测事件上报 |
+| GET | `/api/stats/overview` | 总览统计（含分布） |
+| GET | `/api/stats/trends?days=N` | 每日事件趋势 |
+| GET | `/api/stats/diagnostics` | 诊断面板数据 |
+| GET | `/api/stats/diagnostics/trends?days=N` | 每日异常趋势 |
+| GET | `/api/events?category=&page=&limit=` | 分页事件查询 |
+| GET | `/api/config/version` | 版本信息 |
+| PUT | `/api/config/version` | 更新版本（需认证） |
+| GET | `/update-manifest.json` | 模组更新清单 |
+| POST | `/api/auth/login` | 管理员登录 |
 
 ### 分页
 
@@ -80,6 +97,12 @@ internal/model/*.go         — 模型层：数据结构定义
 - 使用 `INSERT ... ON CONFLICT DO NOTHING` 实现幂等写入。
 - 批量写入时逐条插入，失败的事件跳过并记录日志。
 
+### JSONB 查询
+
+- JSONB 字段取值使用 `->>` 操作符，返回 text 类型。
+- **聚合查询必须处理 NULL**：`groupCount()` 辅助方法使用 `*string` 扫描，NULL 映射为 `"(unknown)"`。
+- 不要假设 JSONB 字段一定存在；历史事件可能缺少某些 key。
+
 ## 前端规范
 
 ### 技术约束
@@ -92,13 +115,21 @@ internal/model/*.go         — 模型层：数据结构定义
 ### 页面组织
 
 - 页面组件放在 `src/pages/`，一个文件一个页面。
-- 路由在 `src/App.tsx` 中集中定义。
+- 路由和导航在 `src/App.tsx` 中集中定义。
+- 导航栏使用 `Nav` 组件，通过 `useLocation` 高亮当前页。
 - 不使用 CSS Modules 或 styled-components，使用内联 style 或全局 CSS。
 
 ### 图表
 
 - 使用 Recharts 库，不引入其他图表库。
 - 图表颜色使用 `COLORS` 常量数组统一管理。
+- 图表区块使用 `ChartSection` 私有组件包裹（标题 + ResponsiveContainer）。
+- 指标卡片使用 `MetricCard` 私有组件（灰色圆角卡片）。
+
+### 数据转换
+
+- `Record<string, number>` 到图表数据使用 `mapToChartData()` 转换。
+- 异常类型排行取 TOP 15，避免图表过长。
 
 ## 部署规范
 
@@ -131,6 +162,10 @@ internal/model/*.go         — 模型层：数据结构定义
 
 所有事件均包含：`anonymous_install_id`、`session_id`、`game_version`、`game_language`、`os_name`、`platform`、`process_architecture`、`ritsulib_version`。
 
+### Diagnostics 特有字段
+
+`exception_type`、`capture_source`、`payload_kind`。
+
 ## 变更规则
 
 - **修改 Store 后必须 `go build ./...` 验证编译通过**。
@@ -138,3 +173,5 @@ internal/model/*.go         — 模型层：数据结构定义
 - 前端新增图表时，确保 Recharts 支持该图表类型。
 - 数据库迁移不可回退已应用的变更，只能追加新迁移。
 - **不要删除或修改已部署的迁移文件**。
+- 修改 API 响应结构时，同步更新 `web/src/types.ts`。
+- JSONB 聚合查询使用 `groupCount()` 而非手写 Scan 循环，确保 NULL 安全。

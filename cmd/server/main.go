@@ -36,6 +36,8 @@ func main() {
 	})
 	r.Get("/api/stats/overview", q.StatsOverview)
 	r.Get("/api/stats/trends", q.DailyTrend)
+	r.Get("/api/stats/diagnostics", q.DiagnosticsOverview)
+	r.Get("/api/stats/diagnostics/trends", q.DiagnosticsTrend)
 	r.Get("/api/events", q.ListEvents)
 	r.Get("/update-manifest.json", cfg.GetManifest)
 	r.Get("/api/config/version", cfg.GetVersion)
