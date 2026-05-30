@@ -104,12 +104,16 @@ func (s *Store) groupCount(ctx context.Context, query string) (map[string]int, e
 
 	m := make(map[string]int)
 	for rows.Next() {
-		var key string
+		var key *string
 		var cnt int
 		if err := rows.Scan(&key, &cnt); err != nil {
 			return nil, err
 		}
-		m[key] = cnt
+		keyStr := "(unknown)"
+		if key != nil {
+			keyStr = *key
+		}
+		m[keyStr] = cnt
 	}
 	return m, nil
 }
