@@ -280,7 +280,7 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 					(properties->>'is_abandoned')::boolean AS is_abandoned
 			) AS v
 		WHERE category = 'RunHistory'
-			AND char_id ~ '^CHARACTER\.STSVWB_CHARACTER_'
+			AND char_id LIKE 'CHARACTER.STSVWB%'
 		GROUP BY char_name
 		ORDER BY cnt DESC
 	`)
