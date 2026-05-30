@@ -310,14 +310,43 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 	result["characters"] = characters
 	result["character_wins"] = characterWins
 	result["character_abandoned"] = characterAbandoned
+	// 平均运行时间（只算非放弃对局）
+	var avgTime float64
+	s.pool.QueryRow(ctx, `" + 'SELECT COALESCE(AVG((properties->>''run_time_seconds'')::int), 0) FROM events WHERE category = ''RunHistory'' AND NOT (properties->>''is_abandoned'')::boolean' + "`).Scan(&avgTime)
+	result["avg_run_time_seconds"] = avgTime
 
-	// 楼层分布
-	floors, err := s.groupCount(ctx,
-		`SELECT properties->>'run_floor_reached', COUNT(*) FROM events WHERE category = 'RunHistory' GROUP BY properties->>'run_floor_reached' ORDER BY COUNT(*) DESC`)
+	// 运行时间分布（分桶，分钟）
+	timeRows, err := s.pool.Query(ctx, `
+		SELECT
+			CASE
+				WHEN (properties->>'run_time_seconds')::int < 60 THEN '<1分钟'
+				WHEN (properties->>'run_time_seconds')::int < 300 THEN '1-5分钟'
+				WHEN (properties->>'run_time_seconds')::int < 900 THEN '5-15分钟'
+				WHEN (properties->>'run_time_seconds')::int < 1800 THEN '15-30分钟'
+				WHEN (properties->>'run_time_seconds')::int < 3600 THEN '30-60分钟'
+				ELSE '>60分钟'
+			END AS bucket,
+			COUNT(*) AS cnt
+		FROM events
+		WHERE category = 'RunHistory'
+		GROUP BY bucket
+		ORDER BY MIN((properties->>'run_time_seconds')::int)
+	`)
 	if err != nil {
 		return nil, err
 	}
-	result["floors"] = floors
+	defer timeRows.Close()
+
+	runTimes := make(map[string]int)
+	for timeRows.Next() {
+		var bucket string
+		var cnt int
+		if err := timeRows.Scan(&bucket, &cnt); err != nil {
+			return nil, err
+		}
+		runTimes[bucket] = cnt
+	}
+	result["run_times"] = runTimes
 
 	// 进阶分布
 	ascensions, err := s.groupCount(ctx,
