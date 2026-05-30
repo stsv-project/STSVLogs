@@ -27,6 +27,7 @@ export default function Runs() {
   if (isLoading) return <div style={{ padding: 24 }}>加载中...</div>;
   if (isError || !data) return <div style={{ padding: 24 }}>加载失败</div>;
 
+  const defeats = data.total_runs - data.total_victories - data.total_abandoned;
   const completed = data.total_runs - data.total_abandoned;
   const winRate = completed > 0
     ? ((data.total_victories / completed) * 100).toFixed(1)
@@ -54,9 +55,10 @@ export default function Runs() {
 
       <div style={{ display: "flex", gap: 16, marginTop: 24, flexWrap: "wrap" }}>
         <MetricCard label="总对局数" value={data.total_runs.toLocaleString()} />
-        <MetricCard label="有效对局" value={completed.toLocaleString()} color="#82ca9d" />
         <MetricCard label="胜利" value={data.total_victories.toLocaleString()} color="#82ca9d" />
+        <MetricCard label="失败" value={defeats.toLocaleString()} color="#ff6384" />
         <MetricCard label="放弃" value={data.total_abandoned.toLocaleString()} color="#ff8042" />
+        <MetricCard label="有效对局" value={completed.toLocaleString()} />
         <MetricCard label="胜率" value={`${winRate}%`} color="#8884d8" />
       </div>
 
