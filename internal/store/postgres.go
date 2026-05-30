@@ -279,8 +279,7 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 					(properties->>'is_victory')::boolean AS is_victory,
 					(properties->>'is_abandoned')::boolean AS is_abandoned
 			) AS v
-		WHERE category = 'RunHistory'
-			AND char_id LIKE 'CHARACTER.STSVWB%'
+	WHERE category = 'RunHistory'
 		GROUP BY char_name
 		ORDER BY cnt DESC
 	`)
@@ -297,6 +296,10 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 		var cnt, wins, abandoned int
 		if err := charRows.Scan(&name, &cnt, &wins, &abandoned); err != nil {
 			return nil, err
+		}
+		// Only include STSVWB characters
+		if !strings.Contains(name, "STSVWB_CHARACTER_") {
+			continue
 		}
 		// Clean up STSVWB_CHARACTER_ prefix
 		name = strings.Replace(name, "STSVWB_CHARACTER_", "", 1)
