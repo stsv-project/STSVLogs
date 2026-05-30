@@ -22,8 +22,9 @@ internal/
 migrations/                  — DDL 迁移脚本
 web/                         — Vite + React + TypeScript 前端
   src/App.tsx                — 路由 + 导航
-  src/pages/Overview.tsx     — 仪表盘概览（含 10 种分布图表）
+  src/pages/Overview.tsx     — 仪表盘概览
   src/pages/Diagnostics.tsx  — 诊断面板
+  src/pages/Runs.tsx         — 对局分析
   src/pages/Admin.tsx        — 管理页
   src/api.ts                 — API 封装
   src/types.ts               — 前端类型定义
@@ -43,6 +44,7 @@ web/                         — Vite + React + TypeScript 前端
 - 日志使用标准库 `log` 包
 - **GROUP BY 聚合使用 `groupCount()` 辅助方法**，该方法已处理 NULL 值（映射为 `"(unknown)"`）
 - **pgx 扫描 NULL 到 Go string 会报错**，聚合查询必须使用 `*string` 指针或 `COALESCE`
+- **JSONB 数组解包**使用 `jsonb_array_elements` 或 `unnest(string_to_array(...))` 配合 LATERAL 子查询
 
 ### 前端
 
@@ -56,6 +58,7 @@ web/                         — Vite + React + TypeScript 前端
 - **导航栏**: 在 `App.tsx` 中通过 `Nav` 组件统一管理，使用 `useLocation` 高亮当前页
 - **通用组件**: `MetricCard`（指标卡片）和 `ChartSection`（图表区块）在页面内定义为私有组件
 - **图表数据转换**: 使用 `mapToChartData()` 将 `Record<string,number>` 转为 `{name,value}[]`
+- **角色名称清理**: Store 层用 `regexp_replace` 去除 `CHARACTER.` 前缀和 `_CHARACTER` 后缀，Go 层用 `strings.Replace` 去除 `STSVWB_CHARACTER_` 前缀
 
 ### API 设计
 
@@ -65,17 +68,20 @@ web/                         — Vite + React + TypeScript 前端
 - 管理端点需要 `auth.Middleware` 包裹
 - 时间序列端点使用 `?days=` 参数（默认 30，上限 365）
 
-### StatsOverview 聚合维度
+### API 端点一览
 
-`/api/stats/overview` 返回以下分布：
-1. `categories` — 事件类别
-2. `game_versions` — 游戏版本
-3. `platforms` — 平台
-4. `languages` — 语言
-5. `os_names` — 操作系统
-6. `ritsulib_versions` — RitsuLib 版本
-7. `process_architectures` — 进程架构（X64/Arm64）
-8. `dotnet_runtimes` — .NET 运行时版本
+| 端点 | 说明 |
+|---|---|
+| `/api/stats/overview` | 总览：事件统计 + 9 维分布 |
+| `/api/stats/trends` | 每日事件趋势 |
+| `/api/stats/diagnostics` | 诊断：异常类型/来源/版本分布 |
+| `/api/stats/diagnostics/trends` | 每日异常趋势 |
+| `/api/stats/runs` | 对局：角色使用率/胜率/楼层/进阶/模式 |
+| `/api/stats/runs/trends` | 每日对局趋势 |
+| `/api/events` | 分页原始事件 |
+| `/api/config/version` | 版本配置 |
+| `/api/auth/login` | 管理登录 |
+| `/ingest` | 遥测上报 |
 
 ## 本地运行
 
@@ -104,3 +110,4 @@ cd web && npm run build
 - 修改 `internal/store/postgres.go` 的查询后，务必 `go build ./...` 验证编译通过
 - JSONB 字段查询使用 `->>` 操作符，结合 `groupCount()` 处理可能的 NULL 值
 - Recharts 的 `ResponsiveContainer` 需要父容器有明确宽度，图表区块使用 `flex: "1 1 400px"` + `minWidth: 320`
+- 角色 ID 是多值字段（空格分隔），统计时使用 `unnest(string_to_array(...))` 拆解

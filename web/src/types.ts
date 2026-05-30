@@ -12,6 +12,17 @@ export interface StatsOverview {
   stsvwb_versions: Record<string, number>;
 }
 
+export interface RunHistoryOverview {
+  total_runs: number;
+  total_victories: number;
+  total_abandoned: number;
+  characters: Record<string, number>;
+  character_wins: Record<string, number>;
+  floors: Record<string, number>;
+  ascensions: Record<string, number>;
+  game_modes: Record<string, number>;
+}
+
 export interface DiagnosticsOverview {
   total_diagnostics: number;
   exception_types: Record<string, number>;

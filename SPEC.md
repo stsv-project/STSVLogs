@@ -8,6 +8,7 @@ STSVLogs 是 STSVWB 模组的遥测数据接收与可视化服务，同时提供
 - 更新清单入口：`GET /update-manifest.json`
 - 仪表盘入口：`/`（前端 SPA）
 - 诊断面板入口：`/diagnostics`
+- 对局分析入口：`/runs`
 
 ## 架构规则
 
@@ -34,16 +35,9 @@ internal/model/*.go         — 模型层：数据结构定义
 ### 日志
 
 - 使用标准库 `log`，不引入第三方日志库。
-- Ingest 成功/失败需打印统计行（已有格式：`收到 X 条事件, 成功写入 Y 条`）。
 - 数据库连接失败使用 `log.Fatal` 终止进程。
 
 ## API 规范
-
-### 路径命名
-
-- 遥测和数据查询端点使用 `/api/` 前缀。
-- 管理端点使用 `/api/admin/` 或通过 auth middleware 保护。
-- 更新清单端点直接使用 `/update-manifest.json`（配合 RitsuLib 更新协议）。
 
 ### 端点列表
 
@@ -51,11 +45,13 @@ internal/model/*.go         — 模型层：数据结构定义
 |---|---|---|
 | GET | `/healthz` | 健康检查 |
 | POST | `/ingest` | 遥测事件上报 |
-| GET | `/api/stats/overview` | 总览统计（含分布） |
+| GET | `/api/stats/overview` | 总览统计（含 9 维分布） |
 | GET | `/api/stats/trends?days=N` | 每日事件趋势 |
 | GET | `/api/stats/diagnostics` | 诊断面板数据 |
 | GET | `/api/stats/diagnostics/trends?days=N` | 每日异常趋势 |
-| GET | `/api/events?category=&page=&limit=` | 分页事件查询 |
+| GET | `/api/stats/runs` | 对局分析数据 |
+| GET | `/api/stats/runs/trends?days=N` | 每日对局趋势 |
+| GET | `/api/events` | 分页事件查询 |
 | GET | `/api/config/version` | 版本信息 |
 | PUT | `/api/config/version` | 更新版本（需认证） |
 | GET | `/update-manifest.json` | 模组更新清单 |
@@ -102,6 +98,8 @@ internal/model/*.go         — 模型层：数据结构定义
 - JSONB 字段取值使用 `->>` 操作符，返回 text 类型。
 - **聚合查询必须处理 NULL**：`groupCount()` 辅助方法使用 `*string` 扫描，NULL 映射为 `"(unknown)"`。
 - 不要假设 JSONB 字段一定存在；历史事件可能缺少某些 key。
+- **JSONB 数组查询**：使用 `jsonb_array_elements()` 解包 JSON 数组，使用 `unnest(string_to_array())` 拆解分隔字符串。
+- **多值字段统计**：`run_character_ids` 是空格分隔的字符串列表，使用 `unnest(string_to_array(properties->>'run_character_ids', ' '))` 拆解为多行后聚合。
 
 ## 前端规范
 
@@ -118,18 +116,21 @@ internal/model/*.go         — 模型层：数据结构定义
 - 路由和导航在 `src/App.tsx` 中集中定义。
 - 导航栏使用 `Nav` 组件，通过 `useLocation` 高亮当前页。
 - 不使用 CSS Modules 或 styled-components，使用内联 style 或全局 CSS。
+- 导航项顺序：概览 → 诊断 → 对局 → 管理。
 
 ### 图表
 
 - 使用 Recharts 库，不引入其他图表库。
 - 图表颜色使用 `COLORS` 常量数组统一管理。
 - 图表区块使用 `ChartSection` 私有组件包裹（标题 + ResponsiveContainer）。
-- 指标卡片使用 `MetricCard` 私有组件（灰色圆角卡片）。
+- 指标卡片使用 `MetricCard` 私有组件（灰色圆角卡片，支持 `color` 属性）。
+- **角色使用率图表**：横向堆叠柱状图，蓝色=出场次数，绿色=胜利，Tooltip 显示默认信息。
 
 ### 数据转换
 
 - `Record<string, number>` 到图表数据使用 `mapToChartData()` 转换。
-- 异常类型排行取 TOP 15，避免图表过长。
+- 排行数据使用 `sortedChartData()` 先排序再转换。
+- 角色/异常类型排行取 TOP 15，避免图表过长。
 
 ## 部署规范
 
@@ -141,7 +142,7 @@ internal/model/*.go         — 模型层：数据结构定义
 ### 环境变量
 
 - `DATABASE_URL`：PostgreSQL 连接字符串（必需）
-- `ADMIN_PASSWORD`：管理员密码（必需，用于 `/api/auth/login`）
+- `ADMIN_PASSWORD`：管理员密码（必需）
 
 ### 端口
 
@@ -151,27 +152,29 @@ internal/model/*.go         — 模型层：数据结构定义
 
 ### 事件类别
 
-| 类别 | 事件名 | 说明 |
+| 类别 | 事件名 | 字段要点 |
 |---|---|---|
-| BasicUsage | session_start | 会话启动快照 |
-| ModInventory | mod_inventory | 模组清单 |
-| Diagnostics | exception | 异常报告 |
-| RunHistory | run_history.completed | 对局结束记录 |
+| BasicUsage | session_start | 会话快照，含所有公共字段 |
+| ModInventory | mod_inventory | payload.mods[] 含完整模组列表 |
+| Diagnostics | exception | exception_type, capture_source |
+| RunHistory | run_history.completed | run_character_ids(空格分隔), is_victory, run_floor_reached, run_ascension, run_game_mode |
 
 ### Properties 公共字段
 
-所有事件均包含：`anonymous_install_id`、`session_id`、`game_version`、`game_language`、`os_name`、`platform`、`process_architecture`、`ritsulib_version`。
+所有事件均包含：`anonymous_install_id`、`session_id`、`game_version`、`game_language`、`os_name`、`platform`、`process_architecture`、`ritsulib_version`、`dotnet_runtime`。
 
-### Diagnostics 特有字段
+### RunHistory 特有字段
 
-`exception_type`、`capture_source`、`payload_kind`。
+`run_character_ids`（空格分隔多角色）、`is_victory`、`is_abandoned`、`run_floor_reached`、`run_ascension`、`run_time_seconds`、`run_game_mode`。
 
 ## 变更规则
 
 - **修改 Store 后必须 `go build ./...` 验证编译通过**。
-- 新增聚合查询时，优先扩展现有端点而非新建端点（减少路由数量）。
+- SQL 字符串中的单引号在 Go 反引号字符串中直接书写，不转义。
+- 新增聚合查询时，优先扩展现有端点而非新建端点。
 - 前端新增图表时，确保 Recharts 支持该图表类型。
 - 数据库迁移不可回退已应用的变更，只能追加新迁移。
 - **不要删除或修改已部署的迁移文件**。
 - 修改 API 响应结构时，同步更新 `web/src/types.ts`。
 - JSONB 聚合查询使用 `groupCount()` 而非手写 Scan 循环，确保 NULL 安全。
+- 角色 ID 清洗：Store 层用 SQL `regexp_replace` 去前缀后缀，Go 层用 `strings.Replace` 去 `STSVWB_CHARACTER_` 前缀。

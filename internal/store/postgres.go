@@ -3,6 +3,7 @@ package store
 import (
 	"STSVLogs/internal/model"
 	"context"
+	"strings"
 	"fmt"
 	"time"
 
@@ -220,6 +221,117 @@ func (s *Store) DiagnosticsTrend(ctx context.Context, days int) ([]map[string]in
 		SELECT DATE(timestamp_utc) AS date, COUNT(*) AS cnt
 		FROM events
 		WHERE category = 'Diagnostics' AND timestamp_utc >= $1
+		GROUP BY DATE(timestamp_utc)
+		ORDER BY date ASC
+	`, time.Now().UTC().AddDate(0, 0, -days))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trend []map[string]interface{}
+	for rows.Next() {
+		var date time.Time
+		var cnt int
+		if err := rows.Scan(&date, &cnt); err != nil {
+			return nil, err
+		}
+		trend = append(trend, map[string]interface{}{
+			"date":  date.Format("2006-01-02"),
+			"count": cnt,
+		})
+	}
+	return trend, nil
+}
+
+// RunHistoryOverview returns run statistics: totals, character usage, win rates, floor/ascension/mode distributions
+func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+
+	var totalRuns int
+	if err := s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE category = 'RunHistory'`).Scan(&totalRuns); err != nil {
+		return nil, err
+	}
+	result["total_runs"] = totalRuns
+
+	var victories int
+	s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE category = 'RunHistory' AND (properties->>'is_victory')::boolean`).Scan(&victories)
+	result["total_victories"] = victories
+
+	var abandoned int
+	s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE category = 'RunHistory' AND (properties->>'is_abandoned')::boolean`).Scan(&abandoned)
+	result["total_abandoned"] = abandoned
+
+	// 角色使用率（从 run_character_ids 中拆解并清理名称）
+	charRows, err := s.pool.Query(ctx, `
+		SELECT
+			regexp_replace(
+				regexp_replace(char_id, '^CHARACTER\.', ''),
+				'_CHARACTER$', ''
+			) AS char_name,
+			COUNT(*) AS cnt,
+			SUM(CASE WHEN is_victory THEN 1 ELSE 0 END) AS wins
+		FROM events,
+			unnest(string_to_array(properties->>'run_character_ids', ' ')) AS char_id,
+			LATERAL (SELECT (properties->>'is_victory')::boolean AS is_victory) AS v
+		WHERE category = 'RunHistory'
+		GROUP BY char_name
+		ORDER BY cnt DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer charRows.Close()
+
+	characters := make(map[string]int)
+	characterWins := make(map[string]int)
+	for charRows.Next() {
+		var name string
+		var cnt, wins int
+		if err := charRows.Scan(&name, &cnt, &wins); err != nil {
+			return nil, err
+		}
+		// Clean up STSVWB_CHARACTER_ prefix
+		name = strings.Replace(name, "STSVWB_CHARACTER_", "", 1)
+		characters[name] = cnt
+		characterWins[name] = wins
+	}
+	result["characters"] = characters
+	result["character_wins"] = characterWins
+
+	// 楼层分布
+	floors, err := s.groupCount(ctx,
+		`SELECT properties->>'run_floor_reached', COUNT(*) FROM events WHERE category = 'RunHistory' GROUP BY properties->>'run_floor_reached' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["floors"] = floors
+
+	// 进阶分布
+	ascensions, err := s.groupCount(ctx,
+		`SELECT properties->>'run_ascension', COUNT(*) FROM events WHERE category = 'RunHistory' GROUP BY properties->>'run_ascension' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["ascensions"] = ascensions
+
+	// 游戏模式分布
+	modes, err := s.groupCount(ctx,
+		`SELECT properties->>'run_game_mode', COUNT(*) FROM events WHERE category = 'RunHistory' GROUP BY properties->>'run_game_mode' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["game_modes"] = modes
+
+	return result, nil
+}
+
+// RunTrend returns daily run counts for last N days
+func (s *Store) RunTrend(ctx context.Context, days int) ([]map[string]interface{}, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT DATE(timestamp_utc) AS date, COUNT(*) AS cnt
+		FROM events
+		WHERE category = 'RunHistory' AND timestamp_utc >= $1
 		GROUP BY DATE(timestamp_utc)
 		ORDER BY date ASC
 	`, time.Now().UTC().AddDate(0, 0, -days))

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
 import Overview from "./pages/Overview";
 import Diagnostics from "./pages/Diagnostics";
+import Runs from "./pages/Runs";
 import Admin from "./pages/Admin";
 
 function Nav() {
@@ -21,6 +22,7 @@ function Nav() {
     }}>
       <Link to="/" style={linkStyle("/")}>概览</Link>
       <Link to="/diagnostics" style={linkStyle("/diagnostics")}>诊断</Link>
+      <Link to="/runs" style={linkStyle("/runs")}>对局</Link>
       <Link to="/admin" style={linkStyle("/admin")}>管理</Link>
     </nav>
   );
@@ -33,6 +35,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Overview />} />
         <Route path="/diagnostics" element={<Diagnostics />} />
+        <Route path="/runs" element={<Runs />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
     </BrowserRouter>
