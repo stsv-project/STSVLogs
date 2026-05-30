@@ -91,6 +91,27 @@ func (s *Store) StatsOverview(ctx context.Context) (map[string]interface{}, erro
 		return nil, err
 	}
 	result["os_names"] = oses
+	ritsulibVersions, err := s.groupCount(ctx,
+		`SELECT properties->>'ritsulib_version', COUNT(*) FROM events GROUP BY properties->>'ritsulib_version' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["ritsulib_versions"] = ritsulibVersions
+
+	arches, err := s.groupCount(ctx,
+		`SELECT properties->>'process_architecture', COUNT(*) FROM events GROUP BY properties->>'process_architecture' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["process_architectures"] = arches
+
+	dotnetRuntimes, err := s.groupCount(ctx,
+		`SELECT properties->>'dotnet_runtime', COUNT(*) FROM events GROUP BY properties->>'dotnet_runtime' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["dotnet_runtimes"] = dotnetRuntimes
+
 
 	return result, nil
 }

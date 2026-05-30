@@ -22,7 +22,7 @@ internal/
 migrations/                  — DDL 迁移脚本
 web/                         — Vite + React + TypeScript 前端
   src/App.tsx                — 路由 + 导航
-  src/pages/Overview.tsx     — 仪表盘概览
+  src/pages/Overview.tsx     — 仪表盘概览（含 10 种分布图表）
   src/pages/Diagnostics.tsx  — 诊断面板
   src/pages/Admin.tsx        — 管理页
   src/api.ts                 — API 封装
@@ -64,6 +64,18 @@ web/                         — Vite + React + TypeScript 前端
 - 认证: Bearer Token，通过 `Authorization` header 传递
 - 管理端点需要 `auth.Middleware` 包裹
 - 时间序列端点使用 `?days=` 参数（默认 30，上限 365）
+
+### StatsOverview 聚合维度
+
+`/api/stats/overview` 返回以下分布：
+1. `categories` — 事件类别
+2. `game_versions` — 游戏版本
+3. `platforms` — 平台
+4. `languages` — 语言
+5. `os_names` — 操作系统
+6. `ritsulib_versions` — RitsuLib 版本
+7. `process_architectures` — 进程架构（X64/Arm64）
+8. `dotnet_runtimes` — .NET 运行时版本
 
 ## 本地运行
 

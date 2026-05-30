@@ -6,6 +6,9 @@ export interface StatsOverview {
   platforms: Record<string, number>;
   languages: Record<string, number>;
   os_names: Record<string, number>;
+  ritsulib_versions: Record<string, number>;
+  process_architectures: Record<string, number>;
+  dotnet_runtimes: Record<string, number>;
 }
 
 export interface DiagnosticsOverview {

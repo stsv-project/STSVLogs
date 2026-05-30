@@ -32,6 +32,9 @@ export default function Overview() {
   const platformData = mapToChartData(data.platforms);
   const languageData = mapToChartData(data.languages);
   const osData = mapToChartData(data.os_names);
+  const ritsulibData = mapToChartData(data.ritsulib_versions);
+  const archData = mapToChartData(data.process_architectures);
+  const dotnetData = mapToChartData(data.dotnet_runtimes);
 
   return (
     <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
@@ -117,6 +120,47 @@ export default function Overview() {
               <Tooltip />
               <Legend />
             </PieChart>
+          </ResponsiveContainer>
+        </ChartSection>
+      </div>
+
+      {/* 图表行：RitsuLib 版本 + 架构 + .NET 运行时 */}
+      <div style={{ display: "flex", gap: 24, marginTop: 32, flexWrap: "wrap" }}>
+        <ChartSection title="RitsuLib 版本分布">
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={ritsulibData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="value" fill="#82ca9d" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartSection>
+
+        <ChartSection title="进程架构分布">
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie data={archData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                {archData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartSection>
+
+        <ChartSection title=".NET 运行时分布">
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={dotnetData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="value" fill="#ffc658" />
+            </BarChart>
           </ResponsiveContainer>
         </ChartSection>
       </div>
