@@ -91,6 +91,18 @@ func (s *Store) StatsOverview(ctx context.Context) (map[string]interface{}, erro
 		return nil, err
 	}
 	result["os_names"] = oses
+	// STSVWB 模组版本分布（从 ModInventory payload 中提取）
+	stsvwbVersions, err := s.groupCount(ctx,
+		`SELECT mod->>'version', COUNT(DISTINCT properties->>'anonymous_install_id')
+		FROM events, jsonb_array_elements(payload->'base_payload'->'mods') AS mod
+		WHERE category = 'ModInventory' AND mod->>'id' = 'STSVWB'
+		GROUP BY mod->>'version'
+		ORDER BY COUNT(DISTINCT properties->>'anonymous_install_id') DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["stsvwb_versions"] = stsvwbVersions
+
 	ritsulibVersions, err := s.groupCount(ctx,
 		`SELECT properties->>'ritsulib_version', COUNT(*) FROM events GROUP BY properties->>'ritsulib_version' ORDER BY COUNT(*) DESC`)
 	if err != nil {

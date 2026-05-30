@@ -35,6 +35,7 @@ export default function Overview() {
   const ritsulibData = mapToChartData(data.ritsulib_versions);
   const archData = mapToChartData(data.process_architectures);
   const dotnetData = mapToChartData(data.dotnet_runtimes);
+  const stsvwbData = mapToChartData(data.stsvwb_versions);
 
   return (
     <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
@@ -64,7 +65,7 @@ export default function Overview() {
         </ChartSection>
       )}
 
-      {/* 图表行：版本 + 平台 */}
+      {/* 图表行：游戏版本 + 平台 */}
       <div style={{ display: "flex", gap: 24, marginTop: 32, flexWrap: "wrap" }}>
         <ChartSection title="游戏版本分布">
           <ResponsiveContainer width="100%" height={250}>
@@ -124,7 +125,7 @@ export default function Overview() {
         </ChartSection>
       </div>
 
-      {/* 图表行：RitsuLib 版本 + 架构 + .NET 运行时 */}
+      {/* 图表行：RitsuLib 版本 + STSVWB 版本 */}
       <div style={{ display: "flex", gap: 24, marginTop: 32, flexWrap: "wrap" }}>
         <ChartSection title="RitsuLib 版本分布">
           <ResponsiveContainer width="100%" height={250}>
@@ -138,6 +139,21 @@ export default function Overview() {
           </ResponsiveContainer>
         </ChartSection>
 
+        <ChartSection title="STSVWB 模组版本">
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={stsvwbData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="value" fill="#ff8042" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartSection>
+      </div>
+
+      {/* 图表行：架构 + .NET 运行时 */}
+      <div style={{ display: "flex", gap: 24, marginTop: 32, flexWrap: "wrap" }}>
         <ChartSection title="进程架构分布">
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>

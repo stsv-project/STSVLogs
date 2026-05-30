@@ -9,6 +9,7 @@ export interface StatsOverview {
   ritsulib_versions: Record<string, number>;
   process_architectures: Record<string, number>;
   dotnet_runtimes: Record<string, number>;
+  stsvwb_versions: Record<string, number>;
 }
 
 export interface DiagnosticsOverview {
