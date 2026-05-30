@@ -32,6 +32,9 @@ export default function Runs() {
   const winRate = completed > 0
     ? ((data.total_victories / completed) * 100).toFixed(1)
     : "0";
+  const avgMinutes = data.avg_run_time_seconds > 0
+    ? `${Math.floor(data.avg_run_time_seconds / 60)}分${Math.round(data.avg_run_time_seconds % 60)}秒`
+    : "—";
 
   const charMerged = Object.entries(data.characters)
     .sort((a, b) => b[1] - a[1])
@@ -45,7 +48,7 @@ export default function Runs() {
       return { name, usage, wins, winRate: charWinRate };
     });
 
-  const floorData = mapToChartData(data.floors).filter(d => d.name !== "" && d.name !== "(unknown)");
+  const timeData = mapToChartData(data.run_times);
   const ascData = mapToChartData(data.ascensions);
   const modeData = mapToChartData(data.game_modes);
 
@@ -60,6 +63,7 @@ export default function Runs() {
         <MetricCard label="放弃" value={data.total_abandoned.toLocaleString()} color="#ff8042" />
         <MetricCard label="有效对局" value={completed.toLocaleString()} />
         <MetricCard label="胜率" value={`${winRate}%`} color="#8884d8" />
+        <MetricCard label="平均用时" value={avgMinutes} />
       </div>
 
       {trendData?.trend && trendData.trend.length > 0 && (
@@ -92,14 +96,14 @@ export default function Runs() {
       </div>
 
       <div style={{ display: "flex", gap: 24, marginTop: 32, flexWrap: "wrap" }}>
-        <ChartSection title="通关楼层分布">
+        <ChartSection title="运行时间分布">
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={floorData}>
+            <BarChart data={timeData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis allowDecimals={false} />
               <Tooltip />
-              <Bar dataKey="value" fill="#ffc658" />
+              <Bar dataKey="value" fill="#0088fe" />
             </BarChart>
           </ResponsiveContainer>
         </ChartSection>

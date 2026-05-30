@@ -16,10 +16,11 @@ export interface RunHistoryOverview {
   total_runs: number;
   total_victories: number;
   total_abandoned: number;
+  avg_run_time_seconds: number;
   characters: Record<string, number>;
   character_wins: Record<string, number>;
   character_abandoned: Record<string, number>;
-  floors: Record<string, number>;
+  run_times: Record<string, number>;
   ascensions: Record<string, number>;
   game_modes: Record<string, number>;
 }
