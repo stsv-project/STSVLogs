@@ -35,6 +35,7 @@ func main() {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 	r.Get("/api/stats/overview", q.StatsOverview)
+	r.Get("/api/stats/trends", q.DailyTrend)
 	r.Get("/api/events", q.ListEvents)
 	r.Get("/update-manifest.json", cfg.GetManifest)
 	r.Get("/api/config/version", cfg.GetVersion)

@@ -1,6 +1,11 @@
 export interface StatsOverview {
   total_events: number;
+  unique_installs: number;
   categories: Record<string, number>;
+  game_versions: Record<string, number>;
+  platforms: Record<string, number>;
+  languages: Record<string, number>;
+  os_names: Record<string, number>;
 }
 
 export interface TelemetryEvent {
@@ -18,4 +23,14 @@ export interface EventsResponse {
   total: number;
   page: number;
   limit: number;
+}
+
+export interface TrendPoint {
+  date: string;
+  count: number;
+}
+
+export interface TrendsResponse {
+  trend: TrendPoint[];
+  days: number;
 }

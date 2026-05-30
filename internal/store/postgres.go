@@ -4,6 +4,7 @@ import (
 	"STSVLogs/internal/model"
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -38,45 +39,114 @@ func (s *Store) InsertEvent(ctx context.Context, evt model.TelemetryEvent) error
 	return err
 }
 
-// StatsOverview 返回总览统计
+// StatsOverview returns aggregate stats: total events, categories, unique installs, version/platform/language/OS distribution
 func (s *Store) StatsOverview(ctx context.Context) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+
 	var total int
-	err := s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM events`).Scan(&total)
+	if err := s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM events`).Scan(&total); err != nil {
+		return nil, err
+	}
+	result["total_events"] = total
+
+	categories, err := s.groupCount(ctx,
+		`SELECT category, COUNT(*) FROM events GROUP BY category ORDER BY COUNT(*) DESC`)
 	if err != nil {
 		return nil, err
 	}
+	result["categories"] = categories
 
-	rows, err := s.pool.Query(ctx, `
-        SELECT category, COUNT(*) as cnt
-        FROM events
-        GROUP BY category
-        ORDER BY cnt DESC
-    `)
+	var installs int
+	if err := s.pool.QueryRow(ctx,
+		`SELECT COUNT(DISTINCT properties->>'anonymous_install_id') FROM events`,
+	).Scan(&installs); err != nil {
+		return nil, err
+	}
+	result["unique_installs"] = installs
+
+	versions, err := s.groupCount(ctx,
+		`SELECT properties->>'game_version', COUNT(*) FROM events GROUP BY properties->>'game_version' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["game_versions"] = versions
+
+	platforms, err := s.groupCount(ctx,
+		`SELECT properties->>'platform', COUNT(*) FROM events GROUP BY properties->>'platform' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["platforms"] = platforms
+
+	languages, err := s.groupCount(ctx,
+		`SELECT properties->>'game_language', COUNT(*) FROM events GROUP BY properties->>'game_language' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["languages"] = languages
+
+	oses, err := s.groupCount(ctx,
+		`SELECT properties->>'os_name', COUNT(*) FROM events GROUP BY properties->>'os_name' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["os_names"] = oses
+
+	return result, nil
+}
+
+func (s *Store) groupCount(ctx context.Context, query string) (map[string]int, error) {
+	rows, err := s.pool.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	categories := make(map[string]int)
+	m := make(map[string]int)
 	for rows.Next() {
-		var cat string
+		var key string
 		var cnt int
-		if err := rows.Scan(&cat, &cnt); err != nil {
+		if err := rows.Scan(&key, &cnt); err != nil {
 			return nil, err
 		}
-		categories[cat] = cnt
+		m[key] = cnt
 	}
-
-	return map[string]interface{}{
-		"total_events": total,
-		"categories":   categories,
-	}, nil
+	return m, nil
 }
 
-// ListEvents 分页查询事件
+// DailyTrend returns daily event counts for the last N days
+func (s *Store) DailyTrend(ctx context.Context, days int) ([]map[string]interface{}, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT DATE(timestamp_utc) AS date, COUNT(*) AS cnt
+		FROM events
+		WHERE timestamp_utc >= $1
+		GROUP BY DATE(timestamp_utc)
+		ORDER BY date ASC
+	`, time.Now().UTC().AddDate(0, 0, -days))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trend []map[string]interface{}
+	for rows.Next() {
+		var date time.Time
+		var cnt int
+		if err := rows.Scan(&date, &cnt); err != nil {
+			return nil, err
+		}
+		trend = append(trend, map[string]interface{}{
+			"date":  date.Format("2006-01-02"),
+			"count": cnt,
+		})
+	}
+	return trend, nil
+}
+
+// ListEvents returns paginated events with optional category filter
 func (s *Store) ListEvents(ctx context.Context, category string, page, limit int) ([]model.TelemetryEvent, int, error) {
 	var total int
-	args := []interface{}{}
+	args := []interface{}{ }
 	where := ""
 
 	if category != "" {
