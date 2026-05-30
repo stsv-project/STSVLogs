@@ -270,11 +270,17 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 				'_CHARACTER$', ''
 			) AS char_name,
 			COUNT(*) AS cnt,
-			SUM(CASE WHEN is_victory THEN 1 ELSE 0 END) AS wins
+			SUM(CASE WHEN is_victory THEN 1 ELSE 0 END) AS wins,
+			SUM(CASE WHEN is_abandoned THEN 1 ELSE 0 END) AS abandoned
 		FROM events,
 			unnest(string_to_array(properties->>'run_character_ids', ' ')) AS char_id,
-			LATERAL (SELECT (properties->>'is_victory')::boolean AS is_victory) AS v
+			LATERAL (
+				SELECT
+					(properties->>'is_victory')::boolean AS is_victory,
+					(properties->>'is_abandoned')::boolean AS is_abandoned
+			) AS v
 		WHERE category = 'RunHistory'
+			AND char_id LIKE 'CHARACTER.STSVWB_CHARACTER_%'
 		GROUP BY char_name
 		ORDER BY cnt DESC
 	`)
