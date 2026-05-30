@@ -63,7 +63,7 @@ export default function Diagnostics() {
       {/* 异常类型排行 */}
       <div style={{ marginTop: 32 }}>
         <ChartSection title="异常类型排行（TOP 15）">
-          <ResponsiveContainer width="100%" height={Math.max(300, exceptionData.length * 28)}>
+          <ResponsiveContainer width="100%" height={Math.max(600, exceptionData.length * 40)}>
             <BarChart data={exceptionData} layout="vertical" margin={{ left: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" allowDecimals={false} />
