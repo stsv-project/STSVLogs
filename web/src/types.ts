@@ -12,6 +12,16 @@ export interface StatsOverview {
   stsvwb_versions: Record<string, number>;
 }
 
+export interface ModInventoryOverview {
+  total_snapshots: number;
+  avg_loaded: number;
+  avg_gameplay: number;
+  avg_disabled: number;
+  avg_failed: number;
+  popular_mods: { id: string; name: string; installs: number }[];
+  load_states: Record<string, number>;
+}
+
 export interface RunHistoryOverview {
   total_runs: number;
   total_victories: number;

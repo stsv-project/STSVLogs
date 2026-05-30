@@ -26,13 +26,11 @@ func (h *Handler) DailyTrend(w http.ResponseWriter, r *http.Request) {
 	if days < 1 || days > 365 {
 		days = 30
 	}
-
 	trend, err := h.Store.DailyTrend(r.Context(), days)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"trend": trend,
@@ -55,13 +53,11 @@ func (h *Handler) DiagnosticsTrend(w http.ResponseWriter, r *http.Request) {
 	if days < 1 || days > 365 {
 		days = 30
 	}
-
 	trend, err := h.Store.DiagnosticsTrend(r.Context(), days)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"trend": trend,
@@ -84,13 +80,38 @@ func (h *Handler) RunTrend(w http.ResponseWriter, r *http.Request) {
 	if days < 1 || days > 365 {
 		days = 30
 	}
-
 	trend, err := h.Store.RunTrend(r.Context(), days)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"trend": trend,
+		"days":  days,
+	})
+}
 
+func (h *Handler) ModInventoryOverview(w http.ResponseWriter, r *http.Request) {
+	result, err := h.Store.ModInventoryOverview(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+func (h *Handler) ModInventoryTrend(w http.ResponseWriter, r *http.Request) {
+	days, _ := strconv.Atoi(r.URL.Query().Get("days"))
+	if days < 1 || days > 365 {
+		days = 30
+	}
+	trend, err := h.Store.ModInventoryTrend(r.Context(), days)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"trend": trend,
@@ -108,13 +129,11 @@ func (h *Handler) ListEvents(w http.ResponseWriter, r *http.Request) {
 	if limit < 1 || limit > 100 {
 		limit = 20
 	}
-
 	events, total, err := h.Store.ListEvents(r.Context(), category, page, limit)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"events": events,

@@ -396,6 +396,92 @@ func (s *Store) RunTrend(ctx context.Context, days int) ([]map[string]interface{
 	return trend, nil
 }
 
+// ModInventoryOverview returns mod popularity ranking, load state distribution, and average mod counts
+func (s *Store) ModInventoryOverview(ctx context.Context) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+
+	var totalSnapshots int
+	s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE category = 'ModInventory'`).Scan(&totalSnapshots)
+	result["total_snapshots"] = totalSnapshots
+
+	var avgLoaded, avgGameplay, avgDisabled, avgFailed float64
+	s.pool.QueryRow(ctx, `SELECT COALESCE(AVG((properties->>'loaded_mod_count')::int), 0) FROM events WHERE category = 'ModInventory'`).Scan(&avgLoaded)
+	s.pool.QueryRow(ctx, `SELECT COALESCE(AVG((properties->>'gameplay_mod_count')::int), 0) FROM events WHERE category = 'ModInventory'`).Scan(&avgGameplay)
+	s.pool.QueryRow(ctx, `SELECT COALESCE(AVG((properties->>'disabled_mod_count')::int), 0) FROM events WHERE category = 'ModInventory'`).Scan(&avgDisabled)
+	s.pool.QueryRow(ctx, `SELECT COALESCE(AVG((properties->>'failed_mod_count')::int), 0) FROM events WHERE category = 'ModInventory'`).Scan(&avgFailed)
+	result["avg_loaded"] = avgLoaded
+	result["avg_gameplay"] = avgGameplay
+	result["avg_disabled"] = avgDisabled
+	result["avg_failed"] = avgFailed
+
+	modRows, err := s.pool.Query(ctx, `
+		SELECT mod->>'id' AS mod_id, mod->>'name' AS mod_name,
+			COUNT(DISTINCT properties->>'anonymous_install_id') AS installs
+		FROM events, jsonb_array_elements(payload->'base_payload'->'mods') AS mod
+		WHERE category = 'ModInventory'
+		GROUP BY mod->>'id', mod->>'name'
+		ORDER BY installs DESC
+		LIMIT 50
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer modRows.Close()
+
+	type ModEntry struct {
+		ID       string `json:"id"`
+		Name     string `json:"name"`
+		Installs int    `json:"installs"`
+	}
+	var mods []ModEntry
+	for modRows.Next() {
+		var m ModEntry
+		if err := modRows.Scan(&m.ID, &m.Name, &m.Installs); err != nil {
+			return nil, err
+		}
+		mods = append(mods, m)
+	}
+	result["popular_mods"] = mods
+
+	states, err := s.groupCount(ctx,
+		`SELECT mod->>'state', COUNT(*) FROM events, jsonb_array_elements(payload->'base_payload'->'mods') AS mod WHERE category = 'ModInventory' GROUP BY mod->>'state' ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	result["load_states"] = states
+
+	return result, nil
+}
+
+// ModInventoryTrend returns daily mod inventory snapshot count
+func (s *Store) ModInventoryTrend(ctx context.Context, days int) ([]map[string]interface{}, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT DATE(timestamp_utc) AS date, COUNT(*) AS cnt
+		FROM events
+		WHERE category = 'ModInventory' AND timestamp_utc >= $1
+		GROUP BY DATE(timestamp_utc)
+		ORDER BY date ASC
+	`, time.Now().UTC().AddDate(0, 0, -days))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trend []map[string]interface{}
+	for rows.Next() {
+		var date time.Time
+		var cnt int
+		if err := rows.Scan(&date, &cnt); err != nil {
+			return nil, err
+		}
+		trend = append(trend, map[string]interface{}{
+			"date":  date.Format("2006-01-02"),
+			"count": cnt,
+		})
+	}
+	return trend, nil
+}
+
 // ListEvents returns paginated events with optional category filter
 func (s *Store) ListEvents(ctx context.Context, category string, page, limit int) ([]model.TelemetryEvent, int, error) {
 	var total int

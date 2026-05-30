@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-do
 import Overview from "./pages/Overview";
 import Diagnostics from "./pages/Diagnostics";
 import Runs from "./pages/Runs";
+import Mods from "./pages/Mods";
 import Admin from "./pages/Admin";
 
 function Nav() {
@@ -23,6 +24,7 @@ function Nav() {
       <Link to="/" style={linkStyle("/")}>概览</Link>
       <Link to="/diagnostics" style={linkStyle("/diagnostics")}>诊断</Link>
       <Link to="/runs" style={linkStyle("/runs")}>对局</Link>
+      <Link to="/mods" style={linkStyle("/mods")}>模组</Link>
       <Link to="/admin" style={linkStyle("/admin")}>管理</Link>
     </nav>
   );
@@ -36,6 +38,7 @@ export default function App() {
         <Route path="/" element={<Overview />} />
         <Route path="/diagnostics" element={<Diagnostics />} />
         <Route path="/runs" element={<Runs />} />
+        <Route path="/mods" element={<Mods />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
     </BrowserRouter>
