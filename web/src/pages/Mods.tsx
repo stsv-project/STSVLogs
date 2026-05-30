@@ -61,11 +61,11 @@ export default function Mods() {
 
       <div style={{ display: "flex", gap: 24, marginTop: 32, flexWrap: "wrap" }}>
         <ChartSection title={`热门 Mod TOP 20（共 ${data.popular_mods.length} 个）`}>
-          <ResponsiveContainer width="100%" height={Math.max(400, topMods.length * 24)}>
+          <ResponsiveContainer width="100%" height={Math.max(500, topMods.length * 26)}>
             <BarChart data={topMods} layout="vertical" margin={{ left: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" allowDecimals={false} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={260} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={260} />
               <Tooltip />
               <Bar dataKey="installs" fill="#8884d8" name="安装数" />
             </BarChart>

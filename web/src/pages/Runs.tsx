@@ -82,11 +82,11 @@ export default function Runs() {
 
       <div style={{ marginTop: 32 }}>
         <ChartSection title={`角色使用率（STSVWB 本模组 ${charMerged.length} 个角色）`}>
-          <ResponsiveContainer width="100%" height={Math.max(350, charMerged.length * 30)}>
+          <ResponsiveContainer width="100%" height={Math.max(400, charMerged.length * 32)}>
             <BarChart data={charMerged} layout="vertical" margin={{ left: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" allowDecimals={false} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={150} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={150} />
               <Tooltip />
               <Bar dataKey="usage" fill="#8884d8" name="出场" />
               <Bar dataKey="wins" fill="#82ca9d" name="胜利" />
@@ -100,7 +100,7 @@ export default function Runs() {
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={timeData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
               <YAxis allowDecimals={false} />
               <Tooltip />
               <Bar dataKey="value" fill="#0088fe" />
@@ -112,7 +112,7 @@ export default function Runs() {
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={ascData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
               <YAxis allowDecimals={false} />
               <Tooltip />
               <Bar dataKey="value" fill="#ff6384" />
