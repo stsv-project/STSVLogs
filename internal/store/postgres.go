@@ -255,11 +255,13 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 	result["total_runs"] = totalRuns
 
 	var victories int
-	s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE category = 'RunHistory' AND (properties->>'is_victory')::boolean`).Scan(&victories)
+	s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE category = 'RunHistory'
+			AND properties->>'run_character_ids' LIKE '%STSVWB%' AND (properties->>'is_victory')::boolean`).Scan(&victories)
 	result["total_victories"] = victories
 
 	var abandoned int
-	s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE category = 'RunHistory' AND (properties->>'is_abandoned')::boolean`).Scan(&abandoned)
+	s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE category = 'RunHistory'
+			AND properties->>'run_character_ids' LIKE '%STSVWB%' AND (properties->>'is_abandoned')::boolean`).Scan(&abandoned)
 	result["total_abandoned"] = abandoned
 
 	// 角色使用率（从 run_character_ids 中拆解并清理名称）
@@ -312,7 +314,8 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 	result["character_abandoned"] = characterAbandoned
 	// 平均运行时间（只算非放弃对局）
 	var avgTime float64
-	s.pool.QueryRow(ctx, `" + 'SELECT COALESCE(AVG((properties->>''run_time_seconds'')::int), 0) FROM events WHERE category = ''RunHistory'' AND NOT (properties->>''is_abandoned'')::boolean' + "`).Scan(&avgTime)
+	s.pool.QueryRow(ctx, `SELECT COALESCE(AVG((properties->>'run_time_seconds')::int), 0) FROM events WHERE category = 'RunHistory'
+			AND properties->>'run_character_ids' LIKE '%STSVWB%' AND NOT (properties->>'is_abandoned')::boolean`).Scan(&avgTime)
 	result["avg_run_time_seconds"] = avgTime
 
 	// 运行时间分布（分桶，分钟）
@@ -329,6 +332,7 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 			COUNT(*) AS cnt
 		FROM events
 		WHERE category = 'RunHistory'
+			AND properties->>'run_character_ids' LIKE '%STSVWB%'
 		GROUP BY bucket
 		ORDER BY MIN((properties->>'run_time_seconds')::int)
 	`)
@@ -350,7 +354,8 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 
 	// 进阶分布
 	ascensions, err := s.groupCount(ctx,
-		`SELECT properties->>'run_ascension', COUNT(*) FROM events WHERE category = 'RunHistory' GROUP BY properties->>'run_ascension' ORDER BY COUNT(*) DESC`)
+		`SELECT properties->>'run_ascension', COUNT(*) FROM events WHERE category = 'RunHistory'
+			AND properties->>'run_character_ids' LIKE '%STSVWB%' GROUP BY properties->>'run_ascension' ORDER BY COUNT(*) DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -358,7 +363,8 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 
 	// 游戏模式分布
 	modes, err := s.groupCount(ctx,
-		`SELECT properties->>'run_game_mode', COUNT(*) FROM events WHERE category = 'RunHistory' GROUP BY properties->>'run_game_mode' ORDER BY COUNT(*) DESC`)
+		`SELECT properties->>'run_game_mode', COUNT(*) FROM events WHERE category = 'RunHistory'
+			AND properties->>'run_character_ids' LIKE '%STSVWB%' GROUP BY properties->>'run_game_mode' ORDER BY COUNT(*) DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -372,7 +378,8 @@ func (s *Store) RunTrend(ctx context.Context, days int) ([]map[string]interface{
 	rows, err := s.pool.Query(ctx, `
 		SELECT DATE(timestamp_utc) AS date, COUNT(*) AS cnt
 		FROM events
-		WHERE category = 'RunHistory' AND timestamp_utc >= $1
+		WHERE category = 'RunHistory'
+			AND properties->>'run_character_ids' LIKE '%STSVWB%' AND timestamp_utc >= $1
 		GROUP BY DATE(timestamp_utc)
 		ORDER BY date ASC
 	`, time.Now().UTC().AddDate(0, 0, -days))
