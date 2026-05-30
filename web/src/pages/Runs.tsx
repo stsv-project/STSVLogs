@@ -82,7 +82,7 @@ export default function Runs() {
 
       <div style={{ marginTop: 32 }}>
         <ChartSection title={`角色使用率（STSVWB 本模组 ${charMerged.length} 个角色）`}>
-          <ResponsiveContainer width="100%" height={Math.max(400, charMerged.length * 32)}>
+          <ResponsiveContainer width="100%" height={Math.max(450, charMerged.length * 45)}>
             <BarChart data={charMerged} layout="vertical" margin={{ left: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" allowDecimals={false} />

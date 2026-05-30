@@ -61,7 +61,7 @@ export default function Mods() {
 
       <div style={{ display: "flex", gap: 24, marginTop: 32, flexWrap: "wrap" }}>
         <ChartSection title={`热门 Mod TOP 20（共 ${data.popular_mods.length} 个）`}>
-          <ResponsiveContainer width="100%" height={Math.max(500, topMods.length * 26)}>
+          <ResponsiveContainer width="100%" height={Math.max(800, topMods.length * 40)}>
             <BarChart data={topMods} layout="vertical" margin={{ left: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" allowDecimals={false} />
