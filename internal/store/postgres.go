@@ -529,9 +529,10 @@ func (s *Store) STSVWBVersionUpdateTrend(ctx context.Context, days int) ([]map[s
 			SELECT
 				properties->>'anonymous_install_id' AS install_id,
 				timestamp_utc,
-				(SELECT mod->>'version' FROM jsonb_array_elements(payload->'base_payload'->'mods') AS mod WHERE mod->>'id' = 'STSVWB') AS version
-			FROM events
-			WHERE category = 'ModInventory'
+				mod->>'version' AS version
+			FROM events,
+				jsonb_array_elements(payload->'base_payload'->'mods') AS mod
+			WHERE category = 'ModInventory' AND mod->>'id' = 'STSVWB'
 		),
 		versioned AS (
 			SELECT
@@ -540,7 +541,6 @@ func (s *Store) STSVWBVersionUpdateTrend(ctx context.Context, days int) ([]map[s
 				version,
 				LAG(version) OVER (PARTITION BY install_id ORDER BY timestamp_utc) AS prev_version
 			FROM stsvwb_snaps
-			WHERE version IS NOT NULL
 		)
 		SELECT date, COUNT(*) AS updates
 		FROM versioned
