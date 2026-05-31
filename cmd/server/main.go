@@ -42,6 +42,8 @@ func main() {
 	r.Get("/api/stats/runs/trends", q.RunTrend)
 	r.Get("/api/stats/mods", q.ModInventoryOverview)
 	r.Get("/api/stats/mods/trends", q.ModInventoryTrend)
+	r.Get("/api/stats/new-installs/trends", q.NewInstallsTrend)
+	r.Get("/api/stats/version-updates/trends", q.VersionUpdateTrend)
 	r.Get("/api/events", q.ListEvents)
 	r.Get("/update-manifest.json", cfg.GetManifest)
 	r.Get("/api/config/version", cfg.GetVersion)

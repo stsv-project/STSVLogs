@@ -489,6 +489,86 @@ func (s *Store) ModInventoryTrend(ctx context.Context, days int) ([]map[string]i
 	return trend, nil
 }
 
+// NewInstallsTrend returns daily count of install_ids seen for the first time
+func (s *Store) NewInstallsTrend(ctx context.Context, days int) ([]map[string]interface{}, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT DATE(first_seen) AS date, COUNT(*) AS new_installs
+		FROM (
+			SELECT MIN(timestamp_utc) AS first_seen
+			FROM events
+			GROUP BY properties->>'anonymous_install_id'
+		) sub
+		WHERE first_seen >= $1
+		GROUP BY DATE(first_seen)
+		ORDER BY date ASC
+	`, time.Now().UTC().AddDate(0, 0, -days))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trend []map[string]interface{}
+	for rows.Next() {
+		var date time.Time
+		var cnt int
+		if err := rows.Scan(&date, &cnt); err != nil {
+			return nil, err
+		}
+		trend = append(trend, map[string]interface{}{
+			"date":  date.Format("2006-01-02"),
+			"count": cnt,
+		})
+	}
+	return trend, nil
+}
+
+// STSVWBVersionUpdateTrend returns daily count of installs that changed STSVWB version
+func (s *Store) STSVWBVersionUpdateTrend(ctx context.Context, days int) ([]map[string]interface{}, error) {
+	rows, err := s.pool.Query(ctx, `
+		WITH stsvwb_snaps AS (
+			SELECT
+				properties->>'anonymous_install_id' AS install_id,
+				timestamp_utc,
+				(SELECT mod->>'version' FROM jsonb_array_elements(payload->'base_payload'->'mods') AS mod WHERE mod->>'id' = 'STSVWB') AS version
+			FROM events
+			WHERE category = 'ModInventory'
+		),
+		versioned AS (
+			SELECT
+				install_id,
+				DATE(timestamp_utc) AS date,
+				version,
+				LAG(version) OVER (PARTITION BY install_id ORDER BY timestamp_utc) AS prev_version
+			FROM stsvwb_snaps
+			WHERE version IS NOT NULL
+		)
+		SELECT date, COUNT(*) AS updates
+		FROM versioned
+		WHERE version != prev_version AND prev_version IS NOT NULL
+			AND date >= $1
+		GROUP BY date
+		ORDER BY date ASC
+	`, time.Now().UTC().AddDate(0, 0, -days))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trend []map[string]interface{}
+	for rows.Next() {
+		var date time.Time
+		var cnt int
+		if err := rows.Scan(&date, &cnt); err != nil {
+			return nil, err
+		}
+		trend = append(trend, map[string]interface{}{
+			"date":  date.Format("2006-01-02"),
+			"count": cnt,
+		})
+	}
+	return trend, nil
+}
+
 // ListEvents returns paginated events with optional category filter
 func (s *Store) ListEvents(ctx context.Context, category string, page, limit int) ([]model.TelemetryEvent, int, error) {
 	var total int

@@ -23,7 +23,10 @@ export default function Mods() {
     queryKey: ["mods-trends"],
     queryFn: () => get<TrendsResponse>("/api/stats/mods/trends?days=30"),
   });
-
+  const { data: updateTrend } = useQuery({
+    queryKey: ["version-updates-trends"],
+    queryFn: () => get<TrendsResponse>("/api/stats/version-updates/trends?days=30"),
+  });
   if (isLoading) return <div style={{ padding: 24 }}>加载中...</div>;
   if (isError || !data) return <div style={{ padding: 24 }}>加载失败</div>;
 
@@ -54,6 +57,22 @@ export default function Mods() {
               <YAxis allowDecimals={false} />
               <Tooltip />
               <Line type="monotone" dataKey="count" stroke="#8884d8" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartSection>
+      )}
+
+      
+      {/* 每日版本更新 */}
+      {updateTrend?.trend && updateTrend.trend.length > 0 && (
+        <ChartSection title="每日 STSVWB 版本更新（近 30 天）">
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={updateTrend.trend}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Line type="monotone" dataKey="count" stroke="#ff8042" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </ChartSection>

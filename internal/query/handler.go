@@ -119,6 +119,41 @@ func (h *Handler) ModInventoryTrend(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+
+func (h *Handler) NewInstallsTrend(w http.ResponseWriter, r *http.Request) {
+	days, _ := strconv.Atoi(r.URL.Query().Get("days"))
+	if days < 1 || days > 365 {
+		days = 30
+	}
+	trend, err := h.Store.NewInstallsTrend(r.Context(), days)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"trend": trend,
+		"days":  days,
+	})
+}
+
+func (h *Handler) VersionUpdateTrend(w http.ResponseWriter, r *http.Request) {
+	days, _ := strconv.Atoi(r.URL.Query().Get("days"))
+	if days < 1 || days > 365 {
+		days = 30
+	}
+	trend, err := h.Store.STSVWBVersionUpdateTrend(r.Context(), days)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"trend": trend,
+		"days":  days,
+	})
+}
+
 func (h *Handler) ListEvents(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
