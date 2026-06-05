@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PageShell } from "../components/Dashboard";
 
 export default function Admin() {
   const [password, setPassword] = useState("");
@@ -6,8 +7,8 @@ export default function Admin() {
   const [version, setVersion] = useState("");
   const [releasePage, setReleasePage] = useState("");
   const [message, setMessage] = useState("");
+  const [messageKind, setMessageKind] = useState<"success" | "error">("success");
 
-  // 登录
   async function login() {
     const res = await fetch("/api/auth/login", {
       method: "POST",
@@ -15,16 +16,17 @@ export default function Admin() {
       body: JSON.stringify({ password }),
     });
     if (!res.ok) {
+      setMessageKind("error");
       setMessage("密码错误");
       return;
     }
     const data = await res.json();
     setToken(data.token);
+    setMessageKind("success");
     setMessage("登录成功");
     loadConfig();
   }
 
-  // 加载当前配置
   async function loadConfig() {
     const res = await fetch("/api/config/version");
     const data = await res.json();
@@ -32,7 +34,6 @@ export default function Admin() {
     setReleasePage(data.release_page_url || "");
   }
 
-  // 保存
   async function save() {
     const res = await fetch("/api/config/version", {
       method: "PUT",
@@ -45,48 +46,54 @@ export default function Admin() {
         release_page: releasePage,
       }),
     });
-    if (res.ok) setMessage("保存成功");
-    else setMessage("保存失败");
+    setMessageKind(res.ok ? "success" : "error");
+    setMessage(res.ok ? "保存成功" : "保存失败");
   }
 
   if (!token) {
     return (
-      <div style={{ padding: 24, maxWidth: 400 }}>
-        <h1>管理登录</h1>
-        <input
-          type="password"
-          placeholder="管理员密码"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{ width: "100%", padding: 8, marginBottom: 8 }}
-        />
-        <button onClick={login} style={{ padding: "8px 16px" }}>
-          登录
-        </button>
-        {message && <p style={{ color: "red" }}>{message}</p>}
-      </div>
+      <PageShell title="管理登录" subtitle="版本清单和发布页配置入口。">
+        <section className="form-panel">
+          {message && <p className={`message ${messageKind}`}>{message}</p>}
+          <label className="field-label" htmlFor="admin-password">管理员密码</label>
+          <input
+            id="admin-password"
+            className="input"
+            type="password"
+            placeholder="ADMIN_PASSWORD"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button className="button" onClick={login}>
+            登录
+          </button>
+        </section>
+      </PageShell>
     );
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 400 }}>
-      <h1>版本管理</h1>
-      {message && <p style={{ color: "green" }}>{message}</p>}
-      <label>最新版本</label>
-      <input
-        value={version}
-        onChange={(e) => setVersion(e.target.value)}
-        style={{ width: "100%", padding: 8, marginBottom: 8 }}
-      />
-      <label>发布页链接</label>
-      <input
-        value={releasePage}
-        onChange={(e) => setReleasePage(e.target.value)}
-        style={{ width: "100%", padding: 8, marginBottom: 16 }}
-      />
-      <button onClick={save} style={{ padding: "8px 24px" }}>
-        保存
-      </button>
-    </div>
+    <PageShell title="版本管理" subtitle="更新 STSVWB 动态版本清单。">
+      <section className="form-panel">
+        {message && <p className={`message ${messageKind}`}>{message}</p>}
+        <label className="field-label" htmlFor="latest-version">最新版本</label>
+        <input
+          id="latest-version"
+          className="input"
+          value={version}
+          onChange={(e) => setVersion(e.target.value)}
+        />
+        <label className="field-label" htmlFor="release-page">发布页链接</label>
+        <input
+          id="release-page"
+          className="input"
+          value={releasePage}
+          onChange={(e) => setReleasePage(e.target.value)}
+        />
+        <button className="button" onClick={save}>
+          保存
+        </button>
+      </section>
+    </PageShell>
   );
 }

@@ -7,25 +7,16 @@ import Admin from "./pages/Admin";
 
 function Nav() {
   const location = useLocation();
-  const linkStyle = (path: string) => ({
-    padding: "8px 16px",
-    textDecoration: "none",
-    color: location.pathname === path ? "#fff" : "#ccc",
-    background: location.pathname === path ? "#555" : "transparent",
-    borderRadius: 6,
-    fontSize: 14,
-  });
+  const linkClass = (path: string) => `nav-link${location.pathname === path ? " active" : ""}`;
 
   return (
-    <nav style={{
-      display: "flex", gap: 8, padding: "10px 24px",
-      background: "#333", alignItems: "center",
-    }}>
-      <Link to="/" style={linkStyle("/")}>概览</Link>
-      <Link to="/diagnostics" style={linkStyle("/diagnostics")}>诊断</Link>
-      <Link to="/runs" style={linkStyle("/runs")}>对局</Link>
-      <Link to="/mods" style={linkStyle("/mods")}>模组</Link>
-      <Link to="/admin" style={linkStyle("/admin")}>管理</Link>
+    <nav className="top-nav">
+      <div className="brand">STSVLogs</div>
+      <Link to="/" className={linkClass("/")}>概览</Link>
+      <Link to="/diagnostics" className={linkClass("/diagnostics")}>诊断</Link>
+      <Link to="/runs" className={linkClass("/runs")}>对局</Link>
+      <Link to="/mods" className={linkClass("/mods")}>模组</Link>
+      <Link to="/admin" className={linkClass("/admin")}>管理</Link>
     </nav>
   );
 }
@@ -33,14 +24,16 @@ function Nav() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Nav />
-      <Routes>
-        <Route path="/" element={<Overview />} />
-        <Route path="/diagnostics" element={<Diagnostics />} />
-        <Route path="/runs" element={<Runs />} />
-        <Route path="/mods" element={<Mods />} />
-        <Route path="/admin" element={<Admin />} />
-      </Routes>
+      <div className="app-shell">
+        <Nav />
+        <Routes>
+          <Route path="/" element={<Overview />} />
+          <Route path="/diagnostics" element={<Diagnostics />} />
+          <Route path="/runs" element={<Runs />} />
+          <Route path="/mods" element={<Mods />} />
+          <Route path="/admin" element={<Admin />} />
+        </Routes>
+      </div>
     </BrowserRouter>
   );
 }

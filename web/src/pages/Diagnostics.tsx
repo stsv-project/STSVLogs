@@ -1,21 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  PieChart, Pie, Cell, Tooltip, Legend,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
-  LineChart, Line,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
+import { ChartPanel, MetricCard, MetricGrid, PageShell, PanelGrid, StatusBlock } from "../components/Dashboard";
+import { axisProps, chartColors, gridProps, mapToChartData, tooltipProps } from "../components/chartTheme";
 import { get } from "../api";
 import type { DiagnosticsOverview, TrendsResponse } from "../types";
-
-const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088fe", "#ff6384", "#36a2eb"];
-
-function mapToChartData(record: Record<string, number>, top?: number) {
-  const entries = Object.entries(record).map(([name, value]) => ({ name, value }));
-  if (top && entries.length > top) {
-    return entries.slice(0, top);
-  }
-  return entries;
-}
 
 export default function Diagnostics() {
   const { data, isLoading, isError } = useQuery({
@@ -28,102 +26,72 @@ export default function Diagnostics() {
     queryFn: () => get<TrendsResponse>("/api/stats/diagnostics/trends?days=30"),
   });
 
-  if (isLoading) return <div style={{ padding: 24 }}>加载中...</div>;
-  if (isError || !data) return <div style={{ padding: 24 }}>加载失败</div>;
+  if (isLoading) return <StatusBlock>加载中...</StatusBlock>;
+  if (isError || !data) return <StatusBlock>加载失败</StatusBlock>;
 
   const exceptionData = mapToChartData(data.exception_types, 15);
   const captureData = mapToChartData(data.capture_sources);
-  const versionData = mapToChartData(data.by_game_version);
+  const versionData = mapToChartData(data.by_game_version, 12);
 
   return (
-    <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
-      <h1>诊断面板</h1>
+    <PageShell title="诊断面板" subtitle="异常、捕获来源和版本分布，以排行优先暴露最重风险。">
+      <MetricGrid>
+        <MetricCard label="异常总数" value={data.total_diagnostics.toLocaleString()} accent="red" />
+        <MetricCard label="异常类型数" value={Object.keys(data.exception_types).length.toLocaleString()} accent="orange" />
+        <MetricCard label="捕获来源数" value={Object.keys(data.capture_sources).length.toLocaleString()} accent="purple" />
+      </MetricGrid>
 
-      <div style={{ display: "flex", gap: 16, marginTop: 24, flexWrap: "wrap" }}>
-        <MetricCard label="异常总数" value={data.total_diagnostics.toLocaleString()} />
-        <MetricCard label="异常类型数" value={Object.keys(data.exception_types).length.toLocaleString()} />
-        <MetricCard label="捕获来源数" value={Object.keys(data.capture_sources).length.toLocaleString()} />
-      </div>
+      <PanelGrid>
+        {trendData?.trend && trendData.trend.length > 0 && (
+          <ChartPanel title="每日异常趋势" note="近 30 天" span={12} height={320}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendData.trend}>
+                <CartesianGrid {...gridProps} />
+                <XAxis dataKey="date" {...axisProps} />
+                <YAxis allowDecimals={false} {...axisProps} />
+                <Tooltip {...tooltipProps} />
+                <Line type="monotone" dataKey="count" stroke={chartColors.red} strokeWidth={3} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartPanel>
+        )}
 
-      {/* 每日异常趋势 */}
-      {trendData?.trend && trendData.trend.length > 0 && (
-        <ChartSection title="每日异常趋势（近 30 天）">
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={trendData.trend}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Line type="monotone" dataKey="count" stroke="#ff6384" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartSection>
-      )}
-
-      {/* 异常类型排行 */}
-      <div style={{ marginTop: 32 }}>
-        <ChartSection title="异常类型排行（TOP 15）">
-          <ResponsiveContainer width="100%" height={Math.max(600, exceptionData.length * 40)}>
-            <BarChart data={exceptionData} layout="vertical" margin={{ left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" allowDecimals={false} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={280} />
-              <Tooltip />
-              <Bar dataKey="value" fill="#ff6384" />
+        <ChartPanel title="异常类型排行" note="TOP 15" span={12} height={Math.max(520, exceptionData.length * 36)}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={exceptionData} layout="vertical" margin={{ left: 16, right: 16 }}>
+              <CartesianGrid {...gridProps} />
+              <XAxis type="number" allowDecimals={false} {...axisProps} />
+              <YAxis type="category" dataKey="name" width={300} {...axisProps} />
+              <Tooltip {...tooltipProps} />
+              <Bar dataKey="value" fill={chartColors.red} name="异常数" />
             </BarChart>
           </ResponsiveContainer>
-        </ChartSection>
-      </div>
+        </ChartPanel>
 
-      {/* 捕获来源 + 版本分布 */}
-      <div style={{ display: "flex", gap: 24, marginTop: 32, flexWrap: "wrap" }}>
-        <ChartSection title="捕获来源分布">
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie data={captureData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                {captureData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartSection>
-
-        <ChartSection title="异常按游戏版本分布">
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={versionData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="value" fill="#ffc658" />
+        <ChartPanel title="捕获来源" span={6} height={320}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={captureData} layout="vertical" margin={{ left: 12, right: 12 }}>
+              <CartesianGrid {...gridProps} />
+              <XAxis type="number" allowDecimals={false} {...axisProps} />
+              <YAxis type="category" dataKey="name" width={160} {...axisProps} />
+              <Tooltip {...tooltipProps} />
+              <Bar dataKey="value" fill={chartColors.orange} name="异常数" />
             </BarChart>
           </ResponsiveContainer>
-        </ChartSection>
-      </div>
-    </div>
-  );
-}
+        </ChartPanel>
 
-function MetricCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{
-      background: "#f0f0f0", borderRadius: 8, padding: "16px 20px",
-      minWidth: 120, textAlign: "center",
-    }}>
-      <div style={{ fontSize: 28, fontWeight: "bold" }}>{value}</div>
-      <div style={{ color: "#666", fontSize: 13 }}>{label}</div>
-    </div>
-  );
-}
-
-function ChartSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ flex: "1 1 400px", minWidth: 320 }}>
-      <h3 style={{ marginBottom: 12 }}>{title}</h3>
-      {children}
-    </div>
+        <ChartPanel title="游戏版本异常" span={6} height={320}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={versionData} layout="vertical" margin={{ left: 12, right: 12 }}>
+              <CartesianGrid {...gridProps} />
+              <XAxis type="number" allowDecimals={false} {...axisProps} />
+              <YAxis type="category" dataKey="name" width={140} {...axisProps} />
+              <Tooltip {...tooltipProps} />
+              <Bar dataKey="value" fill={chartColors.purple} name="异常数" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartPanel>
+      </PanelGrid>
+    </PageShell>
   );
 }
