@@ -33,6 +33,16 @@ export interface RunHistoryOverview {
   run_times: Record<string, number>;
   ascensions: Record<string, number>;
   game_modes: Record<string, number>;
+  card_pick_rates: CardPickRate[];
+}
+
+export interface CardPickRate {
+  card_id: string;
+  card_name: string;
+  offered_count: number;
+  picked_count: number;
+  skipped_count: number;
+  pick_rate: number;
 }
 
 export interface DiagnosticsOverview {

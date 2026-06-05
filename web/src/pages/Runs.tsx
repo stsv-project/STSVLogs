@@ -5,7 +5,7 @@ import {
   LineChart, Line,
 } from "recharts";
 import { get } from "../api";
-import type { RunHistoryOverview, TrendsResponse } from "../types";
+import type { CardPickRate, RunHistoryOverview, TrendsResponse } from "../types";
 
 const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088fe", "#ff6384", "#36a2eb"];
 
@@ -51,6 +51,22 @@ export default function Runs() {
   const timeData = mapToChartData(data.run_times);
   const ascData = mapToChartData(data.ascensions);
   const modeData = mapToChartData(data.game_modes);
+  const cardPickRates = data.card_pick_rates || [];
+  const totalCardOffers = cardPickRates.reduce((sum, card) => sum + card.offered_count, 0);
+  const totalCardPicks = cardPickRates.reduce((sum, card) => sum + card.picked_count, 0);
+  const totalCardPickRate = totalCardOffers > 0
+    ? ((totalCardPicks / totalCardOffers) * 100).toFixed(1)
+    : "0";
+  const cardPickTop = [...cardPickRates]
+    .sort((a, b) => b.picked_count - a.picked_count || b.offered_count - a.offered_count)
+    .slice(0, 25);
+  const cardsWithEnoughSamples = cardPickRates.filter((card) => card.offered_count >= 5);
+  const highPickRates = [...cardsWithEnoughSamples]
+    .sort((a, b) => b.pick_rate - a.pick_rate || b.offered_count - a.offered_count)
+    .slice(0, 15);
+  const lowPickRates = [...cardsWithEnoughSamples]
+    .sort((a, b) => a.pick_rate - b.pick_rate || b.offered_count - a.offered_count)
+    .slice(0, 15);
 
   return (
     <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
@@ -136,6 +152,49 @@ export default function Runs() {
           </ResponsiveContainer>
         </ChartSection>
       </div>
+
+      <div style={{ marginTop: 32 }}>
+        <h2>单卡奖励选取率</h2>
+        <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
+          <MetricCard label="候选出现" value={totalCardOffers.toLocaleString()} />
+          <MetricCard label="选取次数" value={totalCardPicks.toLocaleString()} color="#82ca9d" />
+          <MetricCard label="总体选取率" value={`${totalCardPickRate}%`} color="#8884d8" />
+        </div>
+
+        {cardPickTop.length > 0 ? (
+          <>
+            <ChartSection title="选取次数 / 候选次数 Top 25">
+              <ResponsiveContainer width="100%" height={Math.max(500, cardPickTop.length * 34)}>
+                <BarChart data={cardPickTop} layout="vertical" margin={{ left: 30, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" allowDecimals={false} />
+                  <YAxis type="category" dataKey="card_name" tick={{ fontSize: 12 }} width={190} />
+                  <Tooltip
+                    formatter={(value, name) => [
+                      value,
+                      name === "picked_count" ? "选取" : "候选",
+                    ]}
+                    labelFormatter={(_, payload) => {
+                      const card = payload?.[0]?.payload as CardPickRate | undefined;
+                      return card ? `${card.card_name}（${card.card_id}，${(card.pick_rate * 100).toFixed(1)}%）` : "";
+                    }}
+                  />
+                  <Legend />
+                  <Bar dataKey="offered_count" fill="#8884d8" name="候选" />
+                  <Bar dataKey="picked_count" fill="#82ca9d" name="选取" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartSection>
+
+            <div style={{ display: "flex", gap: 24, marginTop: 32, flexWrap: "wrap" }}>
+              <CardPickRateTable title="高选取率（候选 ≥ 5）" cards={highPickRates} />
+              <CardPickRateTable title="低选取率（候选 ≥ 5）" cards={lowPickRates} />
+            </div>
+          </>
+        ) : (
+          <div style={{ marginTop: 16, color: "#666" }}>暂无单卡奖励选择数据</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -158,5 +217,74 @@ function ChartSection({ title, children }: { title: string; children: React.Reac
       <h3 style={{ marginBottom: 12 }}>{title}</h3>
       {children}
     </div>
+  );
+}
+
+function CardPickRateTable({ title, cards }: { title: string; cards: CardPickRate[] }) {
+  return (
+    <div style={{ flex: "1 1 520px", minWidth: 320 }}>
+      <h3 style={{ marginBottom: 12 }}>{title}</h3>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: "#f0f0f0" }}>
+              <TableHeader>中文名</TableHeader>
+              <TableHeader>卡牌 ID</TableHeader>
+              <TableHeader align="right">候选</TableHeader>
+              <TableHeader align="right">选取</TableHeader>
+              <TableHeader align="right">跳过</TableHeader>
+              <TableHeader align="right">选取率</TableHeader>
+            </tr>
+          </thead>
+          <tbody>
+            {cards.map((card) => (
+              <tr key={`${title}-${card.card_id}`} style={{ borderBottom: "1px solid #eee" }}>
+                <TableCell>{card.card_name}</TableCell>
+                <TableCell>{card.card_id.replace("STSVWB_CARD_", "")}</TableCell>
+                <TableCell align="right">{card.offered_count.toLocaleString()}</TableCell>
+                <TableCell align="right">{card.picked_count.toLocaleString()}</TableCell>
+                <TableCell align="right">{card.skipped_count.toLocaleString()}</TableCell>
+                <TableCell align="right">{(card.pick_rate * 100).toFixed(1)}%</TableCell>
+              </tr>
+            ))}
+            {cards.length === 0 && (
+              <tr>
+                <TableCell colSpan={6}>暂无满足样本量的数据</TableCell>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function TableHeader({
+  children,
+  align = "left",
+}: {
+  children: React.ReactNode;
+  align?: "left" | "right";
+}) {
+  return (
+    <th style={{ padding: "8px 10px", textAlign: align, whiteSpace: "nowrap" }}>
+      {children}
+    </th>
+  );
+}
+
+function TableCell({
+  children,
+  align = "left",
+  colSpan,
+}: {
+  children: React.ReactNode;
+  align?: "left" | "right";
+  colSpan?: number;
+}) {
+  return (
+    <td colSpan={colSpan} style={{ padding: "8px 10px", textAlign: align, whiteSpace: "nowrap" }}>
+      {children}
+    </td>
   );
 }

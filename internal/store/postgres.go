@@ -3,8 +3,8 @@ package store
 import (
 	"STSVLogs/internal/model"
 	"context"
-	"strings"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,6 +12,15 @@ import (
 
 type Store struct {
 	pool *pgxpool.Pool
+}
+
+type CardPickRate struct {
+	CardID       string  `json:"card_id"`
+	CardName     string  `json:"card_name"`
+	OfferedCount int     `json:"offered_count"`
+	PickedCount  int     `json:"picked_count"`
+	SkippedCount int     `json:"skipped_count"`
+	PickRate     float64 `json:"pick_rate"`
 }
 
 func New(ctx context.Context, connStr string) (*Store, error) {
@@ -124,7 +133,6 @@ func (s *Store) StatsOverview(ctx context.Context) (map[string]interface{}, erro
 		return nil, err
 	}
 	result["dotnet_runtimes"] = dotnetRuntimes
-
 
 	return result, nil
 }
@@ -370,6 +378,74 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 	}
 	result["game_modes"] = modes
 
+	cardPickRates, err := s.CardPickRates(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result["card_pick_rates"] = cardPickRates
+
+	return result, nil
+}
+
+func (s *Store) CardPickRates(ctx context.Context) ([]CardPickRate, error) {
+	rows, err := s.pool.Query(ctx, `
+		WITH choices AS (
+			SELECT
+				card_choice->'card'->>'id' AS card_id,
+				COALESCE((card_choice->>'was_picked')::boolean, false) AS was_picked
+			FROM events
+			CROSS JOIN LATERAL jsonb_array_elements(
+				COALESCE(payload->'applicant_payload'->'run_history'->'map_point_history', '[]'::jsonb)
+			) AS act_history
+			CROSS JOIN LATERAL jsonb_array_elements(
+				COALESCE(act_history, '[]'::jsonb)
+			) AS map_point
+			CROSS JOIN LATERAL jsonb_array_elements(
+				COALESCE(map_point->'player_stats', '[]'::jsonb)
+			) AS player_stat
+			CROSS JOIN LATERAL jsonb_array_elements(
+				COALESCE(player_stat->'card_choices', '[]'::jsonb)
+			) AS card_choice
+			WHERE category = 'RunHistory'
+				AND properties->>'run_character_ids' LIKE '%STSVWB%'
+				AND card_choice->'card'->>'id' LIKE 'STSVWB_CARD_%'
+		)
+		SELECT
+			card_id,
+			COUNT(*) AS offered_count,
+			COUNT(*) FILTER (WHERE was_picked) AS picked_count
+		FROM choices
+		GROUP BY card_id
+		ORDER BY picked_count DESC, offered_count DESC, card_id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []CardPickRate
+	for rows.Next() {
+		var cardID string
+		var offered, picked int
+		if err := rows.Scan(&cardID, &offered, &picked); err != nil {
+			return nil, err
+		}
+		pickRate := 0.0
+		if offered > 0 {
+			pickRate = float64(picked) / float64(offered)
+		}
+		result = append(result, CardPickRate{
+			CardID:       cardID,
+			CardName:     cardDisplayName(cardID),
+			OfferedCount: offered,
+			PickedCount:  picked,
+			SkippedCount: offered - picked,
+			PickRate:     pickRate,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -572,7 +648,7 @@ func (s *Store) STSVWBVersionUpdateTrend(ctx context.Context, days int) ([]map[s
 // ListEvents returns paginated events with optional category filter
 func (s *Store) ListEvents(ctx context.Context, category string, page, limit int) ([]model.TelemetryEvent, int, error) {
 	var total int
-	args := []interface{}{ }
+	args := []interface{}{}
 	where := ""
 
 	if category != "" {
