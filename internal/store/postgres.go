@@ -391,7 +391,7 @@ func (s *Store) CardPickRates(ctx context.Context) ([]CardPickRate, error) {
 	rows, err := s.pool.Query(ctx, `
 		WITH choices AS (
 			SELECT
-				card_choice->'card'->>'id' AS card_id,
+				regexp_replace(card_choice->'card'->>'id', '^CARD\.', '') AS card_id,
 				COALESCE((card_choice->>'was_picked')::boolean, false) AS was_picked
 			FROM events
 			CROSS JOIN LATERAL jsonb_array_elements(
@@ -408,7 +408,7 @@ func (s *Store) CardPickRates(ctx context.Context) ([]CardPickRate, error) {
 			) AS card_choice
 			WHERE category = 'RunHistory'
 				AND properties->>'run_character_ids' LIKE '%STSVWB%'
-				AND card_choice->'card'->>'id' LIKE 'STSVWB_CARD_%'
+				AND regexp_replace(card_choice->'card'->>'id', '^CARD\.', '') LIKE 'STSVWB_CARD_%'
 		)
 		SELECT
 			card_id,
@@ -423,7 +423,7 @@ func (s *Store) CardPickRates(ctx context.Context) ([]CardPickRate, error) {
 	}
 	defer rows.Close()
 
-	var result []CardPickRate
+	result := make([]CardPickRate, 0)
 	for rows.Next() {
 		var cardID string
 		var offered, picked int

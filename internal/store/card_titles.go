@@ -27,5 +27,6 @@ func cardDisplayName(cardID string) string {
 }
 
 func cleanCardID(cardID string) string {
+	cardID = strings.TrimPrefix(cardID, "CARD.")
 	return strings.TrimPrefix(cardID, "STSVWB_CARD_")
 }
