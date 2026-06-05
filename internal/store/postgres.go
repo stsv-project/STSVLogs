@@ -23,6 +23,15 @@ type CardPickRate struct {
 	PickRate     float64 `json:"pick_rate"`
 }
 
+type CardWinRate struct {
+	CardID    string  `json:"card_id"`
+	CardName  string  `json:"card_name"`
+	RunCount  int     `json:"run_count"`
+	WinCount  int     `json:"win_count"`
+	LossCount int     `json:"loss_count"`
+	WinRate   float64 `json:"win_rate"`
+}
+
 func New(ctx context.Context, connStr string) (*Store, error) {
 	pool, err := pgxpool.New(ctx, connStr)
 	if err != nil {
@@ -384,6 +393,12 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 	}
 	result["card_pick_rates"] = cardPickRates
 
+	cardWinRates, err := s.CardWinRates(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result["card_win_rates"] = cardWinRates
+
 	return result, nil
 }
 
@@ -441,6 +456,64 @@ func (s *Store) CardPickRates(ctx context.Context) ([]CardPickRate, error) {
 			PickedCount:  picked,
 			SkippedCount: offered - picked,
 			PickRate:     pickRate,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *Store) CardWinRates(ctx context.Context) ([]CardWinRate, error) {
+	rows, err := s.pool.Query(ctx, `
+		WITH run_cards AS (
+			SELECT DISTINCT
+				events.id AS event_id,
+				regexp_replace(card->>'id', '^CARD\.', '') AS card_id,
+				COALESCE((properties->>'is_victory')::boolean, false) AS is_victory
+			FROM events
+			CROSS JOIN LATERAL jsonb_array_elements(
+				COALESCE(payload->'applicant_payload'->'run_history'->'players', '[]'::jsonb)
+			) AS player
+			CROSS JOIN LATERAL jsonb_array_elements(
+				COALESCE(player->'deck', '[]'::jsonb)
+			) AS card
+			WHERE category = 'RunHistory'
+				AND properties->>'run_character_ids' LIKE '%STSVWB%'
+				AND NOT COALESCE((properties->>'is_abandoned')::boolean, false)
+				AND regexp_replace(card->>'id', '^CARD\.', '') LIKE 'STSVWB_CARD_%'
+		)
+		SELECT
+			card_id,
+			COUNT(*) AS run_count,
+			COUNT(*) FILTER (WHERE is_victory) AS win_count
+		FROM run_cards
+		GROUP BY card_id
+		ORDER BY win_count DESC, run_count DESC, card_id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make([]CardWinRate, 0)
+	for rows.Next() {
+		var cardID string
+		var runs, wins int
+		if err := rows.Scan(&cardID, &runs, &wins); err != nil {
+			return nil, err
+		}
+		winRate := 0.0
+		if runs > 0 {
+			winRate = float64(wins) / float64(runs)
+		}
+		result = append(result, CardWinRate{
+			CardID:    cardID,
+			CardName:  cardDisplayName(cardID),
+			RunCount:  runs,
+			WinCount:  wins,
+			LossCount: runs - wins,
+			WinRate:   winRate,
 		})
 	}
 	if err := rows.Err(); err != nil {

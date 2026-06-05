@@ -5,7 +5,7 @@ import {
   LineChart, Line,
 } from "recharts";
 import { get } from "../api";
-import type { CardPickRate, RunHistoryOverview, TrendsResponse } from "../types";
+import type { CardPickRate, CardWinRate, RunHistoryOverview, TrendsResponse } from "../types";
 
 const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088fe", "#ff6384", "#36a2eb"];
 
@@ -66,6 +66,22 @@ export default function Runs() {
     .slice(0, 15);
   const lowPickRates = [...cardsWithEnoughSamples]
     .sort((a, b) => a.pick_rate - b.pick_rate || b.offered_count - a.offered_count)
+    .slice(0, 15);
+  const cardWinRates = data.card_win_rates || [];
+  const totalCardRunSamples = cardWinRates.reduce((sum, card) => sum + card.run_count, 0);
+  const totalCardWins = cardWinRates.reduce((sum, card) => sum + card.win_count, 0);
+  const totalCardWinRate = totalCardRunSamples > 0
+    ? ((totalCardWins / totalCardRunSamples) * 100).toFixed(1)
+    : "0";
+  const cardWinTop = [...cardWinRates]
+    .sort((a, b) => b.win_count - a.win_count || b.run_count - a.run_count)
+    .slice(0, 25);
+  const cardWinsWithEnoughSamples = cardWinRates.filter((card) => card.run_count >= 5);
+  const highWinRates = [...cardWinsWithEnoughSamples]
+    .sort((a, b) => b.win_rate - a.win_rate || b.run_count - a.run_count)
+    .slice(0, 15);
+  const lowWinRates = [...cardWinsWithEnoughSamples]
+    .sort((a, b) => a.win_rate - b.win_rate || b.run_count - a.run_count)
     .slice(0, 15);
 
   return (
@@ -195,6 +211,49 @@ export default function Runs() {
           <div style={{ marginTop: 16, color: "#666" }}>暂无单卡奖励选择数据</div>
         )}
       </div>
+
+      <div style={{ marginTop: 32 }}>
+        <h2>单卡最终牌组胜率</h2>
+        <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
+          <MetricCard label="样本对局" value={totalCardRunSamples.toLocaleString()} />
+          <MetricCard label="胜利样本" value={totalCardWins.toLocaleString()} color="#82ca9d" />
+          <MetricCard label="总体样本胜率" value={`${totalCardWinRate}%`} color="#8884d8" />
+        </div>
+
+        {cardWinTop.length > 0 ? (
+          <>
+            <ChartSection title="胜利数 / 样本对局 Top 25">
+              <ResponsiveContainer width="100%" height={Math.max(500, cardWinTop.length * 34)}>
+                <BarChart data={cardWinTop} layout="vertical" margin={{ left: 30, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" allowDecimals={false} />
+                  <YAxis type="category" dataKey="card_name" tick={{ fontSize: 12 }} width={190} />
+                  <Tooltip
+                    formatter={(value, name) => [
+                      value,
+                      name === "win_count" ? "胜利" : "样本",
+                    ]}
+                    labelFormatter={(_, payload) => {
+                      const card = payload?.[0]?.payload as CardWinRate | undefined;
+                      return card ? `${card.card_name}（${card.card_id}，${(card.win_rate * 100).toFixed(1)}%）` : "";
+                    }}
+                  />
+                  <Legend />
+                  <Bar dataKey="run_count" fill="#8884d8" name="样本" />
+                  <Bar dataKey="win_count" fill="#82ca9d" name="胜利" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartSection>
+
+            <div style={{ display: "flex", gap: 24, marginTop: 32, flexWrap: "wrap" }}>
+              <CardWinRateTable title="高胜率（样本 ≥ 5）" cards={highWinRates} />
+              <CardWinRateTable title="低胜率（样本 ≥ 5）" cards={lowWinRates} />
+            </div>
+          </>
+        ) : (
+          <div style={{ marginTop: 16, color: "#666" }}>暂无单卡最终牌组胜率数据</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -245,6 +304,45 @@ function CardPickRateTable({ title, cards }: { title: string; cards: CardPickRat
                 <TableCell align="right">{card.picked_count.toLocaleString()}</TableCell>
                 <TableCell align="right">{card.skipped_count.toLocaleString()}</TableCell>
                 <TableCell align="right">{(card.pick_rate * 100).toFixed(1)}%</TableCell>
+              </tr>
+            ))}
+            {cards.length === 0 && (
+              <tr>
+                <TableCell colSpan={6}>暂无满足样本量的数据</TableCell>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CardWinRateTable({ title, cards }: { title: string; cards: CardWinRate[] }) {
+  return (
+    <div style={{ flex: "1 1 520px", minWidth: 320 }}>
+      <h3 style={{ marginBottom: 12 }}>{title}</h3>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: "#f0f0f0" }}>
+              <TableHeader>中文名</TableHeader>
+              <TableHeader>卡牌 ID</TableHeader>
+              <TableHeader align="right">样本</TableHeader>
+              <TableHeader align="right">胜利</TableHeader>
+              <TableHeader align="right">失败</TableHeader>
+              <TableHeader align="right">胜率</TableHeader>
+            </tr>
+          </thead>
+          <tbody>
+            {cards.map((card) => (
+              <tr key={`${title}-${card.card_id}`} style={{ borderBottom: "1px solid #eee" }}>
+                <TableCell>{card.card_name}</TableCell>
+                <TableCell>{card.card_id.replace("STSVWB_CARD_", "")}</TableCell>
+                <TableCell align="right">{card.run_count.toLocaleString()}</TableCell>
+                <TableCell align="right">{card.win_count.toLocaleString()}</TableCell>
+                <TableCell align="right">{card.loss_count.toLocaleString()}</TableCell>
+                <TableCell align="right">{(card.win_rate * 100).toFixed(1)}%</TableCell>
               </tr>
             ))}
             {cards.length === 0 && (

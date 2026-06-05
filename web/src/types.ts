@@ -34,6 +34,7 @@ export interface RunHistoryOverview {
   ascensions: Record<string, number>;
   game_modes: Record<string, number>;
   card_pick_rates: CardPickRate[];
+  card_win_rates: CardWinRate[];
 }
 
 export interface CardPickRate {
@@ -43,6 +44,15 @@ export interface CardPickRate {
   picked_count: number;
   skipped_count: number;
   pick_rate: number;
+}
+
+export interface CardWinRate {
+  card_id: string;
+  card_name: string;
+  run_count: number;
+  win_count: number;
+  loss_count: number;
+  win_rate: number;
 }
 
 export interface DiagnosticsOverview {
