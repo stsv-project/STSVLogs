@@ -114,7 +114,7 @@ cd web && npm run build
 
 ## 遥测事件类型
 
-遥测数据格式由 [STSVWB 模组](https://github.com/stsv-project/STSVWB) 和 [RitsuLib](https://github.com/BAKAOLC/RitsuLib) 框架定义。
+遥测数据格式由 [STSVWB 模组](https://github.com/stsv-project/STSVWB) 和 [RitsuLib](https://github.com/BAKAOLC/STS2-RitsuLib) 框架定义。
 
 | 事件             | 说明                                     |
 | ---------------- | ---------------------------------------- |
