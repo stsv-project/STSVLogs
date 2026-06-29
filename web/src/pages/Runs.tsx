@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import {
   Bar,
   BarChart,
@@ -190,7 +191,7 @@ export default function Runs() {
                 <BarChart data={cardPickTop} layout="vertical" margin={{ left: 12, right: 16 }}>
                   <CartesianGrid {...gridProps} />
                   <XAxis type="number" allowDecimals={false} {...axisProps} />
-                  <YAxis type="category" dataKey="card_name" width={220} {...axisProps} />
+                  <YAxis {...axisProps} type="category" dataKey="card_name" width={220} tick={<CardAxisTick />} />
                   <Tooltip {...tooltipProps} formatter={(value, name) => [value, name === "picked_count" ? "选取" : "候选"]} />
                   <Bar dataKey="offered_count" fill={chartColors.purple} name="候选" />
                   <Bar dataKey="picked_count" fill={chartColors.green} name="选取" />
@@ -223,7 +224,7 @@ export default function Runs() {
                 <BarChart data={cardWinTop} layout="vertical" margin={{ left: 12, right: 16 }}>
                   <CartesianGrid {...gridProps} />
                   <XAxis type="number" allowDecimals={false} {...axisProps} />
-                  <YAxis type="category" dataKey="card_name" width={220} {...axisProps} />
+                  <YAxis {...axisProps} type="category" dataKey="card_name" width={220} tick={<CardAxisTick />} />
                   <Tooltip {...tooltipProps} formatter={(value, name) => [value, name === "win_count" ? "胜利" : "样本"]} />
                   <Bar dataKey="run_count" fill={chartColors.purple} name="样本" />
                   <Bar dataKey="win_count" fill={chartColors.green} name="胜利" />
@@ -265,7 +266,7 @@ function CardPickRateChart({ title, data, color }: { title: string; data: CardPi
         <BarChart data={data} layout="vertical" margin={{ left: 12, right: 16 }}>
           <CartesianGrid {...gridProps} />
           <XAxis type="number" domain={[0, 100]} unit="%" {...axisProps} />
-          <YAxis type="category" dataKey="card_name" width={190} {...axisProps} />
+          <YAxis {...axisProps} type="category" dataKey="card_name" width={190} tick={<CardAxisTick />} />
           <Tooltip
             {...tooltipProps}
             formatter={(value, name, item) => {
@@ -290,7 +291,7 @@ function CardWinRateChart({ title, data, color }: { title: string; data: CardWin
         <BarChart data={data} layout="vertical" margin={{ left: 12, right: 16 }}>
           <CartesianGrid {...gridProps} />
           <XAxis type="number" domain={[0, 100]} unit="%" {...axisProps} />
-          <YAxis type="category" dataKey="card_name" width={190} {...axisProps} />
+          <YAxis {...axisProps} type="category" dataKey="card_name" width={190} tick={<CardAxisTick />} />
           <Tooltip
             {...tooltipProps}
             formatter={(value, name, item) => {
@@ -305,5 +306,20 @@ function CardWinRateChart({ title, data, color }: { title: string; data: CardWin
         </BarChart>
       </ResponsiveContainer>
     </ChartPanel>
+  );
+}
+
+function CardAxisTick({ x, y, payload }: { x?: number; y?: number; payload?: { value?: string; payload?: { card_id?: string } } }) {
+  if (typeof x !== "number" || typeof y !== "number" || !payload?.value || !payload.payload?.card_id) {
+    return null;
+  }
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <foreignObject x={-185} y={-12} width={180} height={24}>
+        <Link className="chart-axis-link" to={`/cards/${encodeURIComponent(payload.payload.card_id)}`} title={payload.value}>
+          {payload.value}
+        </Link>
+      </foreignObject>
+    </g>
   );
 }

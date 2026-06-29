@@ -55,6 +55,33 @@ export interface CardWinRate {
   win_rate: number;
 }
 
+export interface CardAnalysis {
+  card_id: string;
+  card_name: string;
+  offered_count: number;
+  picked_count: number;
+  skipped_count: number;
+  pick_rate: number;
+  run_count: number;
+  win_count: number;
+  loss_count: number;
+  win_rate: number;
+  character_runs: Record<string, number>;
+  character_wins: Record<string, number>;
+  ascensions: Record<string, number>;
+  game_modes: Record<string, number>;
+  pick_trend: TrendPoint[];
+  final_deck_trend: TrendPoint[];
+  co_occurring_cards: CardCount[];
+  frequent_offer_mates: CardCount[];
+}
+
+export interface CardCount {
+  card_id: string;
+  card_name: string;
+  count: number;
+}
+
 export interface DiagnosticsOverview {
   total_diagnostics: number;
   exception_types: Record<string, number>;

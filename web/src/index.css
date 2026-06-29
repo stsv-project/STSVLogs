@@ -145,6 +145,34 @@ input {
   font-weight: 650;
 }
 
+.page-actions {
+  margin-top: 12px;
+}
+
+.text-link,
+.chart-axis-link {
+  color: var(--ink);
+  font-weight: 900;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.chart-axis-link {
+  display: block;
+  font-size: 11px;
+  line-height: 24px;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-link:hover,
+.chart-axis-link:hover {
+  color: var(--orange);
+}
+
 .status-block {
   margin: 24px auto;
   width: min(640px, calc(100vw - 28px));

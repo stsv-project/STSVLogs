@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
+
+	"github.com/go-chi/chi"
 )
 
 type Handler struct {
@@ -92,6 +95,21 @@ func (h *Handler) RunTrend(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) CardAnalysis(w http.ResponseWriter, r *http.Request) {
+	cardID := strings.TrimSpace(chi.URLParam(r, "cardID"))
+	if cardID == "" {
+		http.Error(w, "cardID is required", http.StatusBadRequest)
+		return
+	}
+	result, err := h.Store.CardAnalysis(r.Context(), cardID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
 func (h *Handler) ModInventoryOverview(w http.ResponseWriter, r *http.Request) {
 	result, err := h.Store.ModInventoryOverview(r.Context())
 	if err != nil {
@@ -118,7 +136,6 @@ func (h *Handler) ModInventoryTrend(w http.ResponseWriter, r *http.Request) {
 		"days":  days,
 	})
 }
-
 
 func (h *Handler) NewInstallsTrend(w http.ResponseWriter, r *http.Request) {
 	days, _ := strconv.Atoi(r.URL.Query().Get("days"))
