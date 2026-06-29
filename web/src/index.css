@@ -150,7 +150,7 @@ input {
 }
 
 .text-link,
-.chart-axis-link {
+.card-detail-link {
   color: var(--ink);
   font-weight: 900;
   text-decoration: underline;
@@ -158,19 +158,26 @@ input {
   text-underline-offset: 3px;
 }
 
-.chart-axis-link {
-  display: block;
-  font-size: 11px;
-  line-height: 24px;
-  overflow: hidden;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.text-link:hover,
+.card-detail-link:hover {
+  color: var(--orange);
 }
 
-.text-link:hover,
-.chart-axis-link:hover {
-  color: var(--orange);
+.card-link-grid {
+  align-content: start;
+  display: grid;
+  gap: 8px 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  height: 100%;
+  overflow: auto;
+}
+
+.card-detail-link {
+  display: block;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-block {
