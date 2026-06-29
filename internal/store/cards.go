@@ -72,21 +72,9 @@ func normalizeCardID(cardID string) string {
 func (s *Store) cardPickSummary(ctx context.Context, cardID string) (CardPickRate, error) {
 	var offered, picked int
 	if err := s.pool.QueryRow(ctx, `
-		WITH choices AS (
-			SELECT COALESCE((card_choice->>'was_picked')::boolean, false) AS was_picked
-			FROM events
-			CROSS JOIN LATERAL jsonb_array_elements(
-				COALESCE(payload->'applicant_payload'->'run_history'->'map_point_history', '[]'::jsonb)
-			) AS act_history
-			CROSS JOIN LATERAL jsonb_array_elements(COALESCE(act_history, '[]'::jsonb)) AS map_point
-			CROSS JOIN LATERAL jsonb_array_elements(COALESCE(map_point->'player_stats', '[]'::jsonb)) AS player_stat
-			CROSS JOIN LATERAL jsonb_array_elements(COALESCE(player_stat->'card_choices', '[]'::jsonb)) AS card_choice
-			WHERE category = 'RunHistory'
-				AND properties->>'run_character_ids' LIKE '%STSVWB%'
-				AND regexp_replace(card_choice->'card'->>'id', '^CARD\.', '') = $1
-		)
-		SELECT COUNT(*), COUNT(*) FILTER (WHERE was_picked)
-		FROM choices
+		SELECT
+			COALESCE((SELECT offered_count FROM card_pick_stats WHERE card_id = $1), 0),
+			COALESCE((SELECT picked_count FROM card_pick_stats WHERE card_id = $1), 0)
 	`, cardID).Scan(&offered, &picked); err != nil {
 		return CardPickRate{}, err
 	}
@@ -108,22 +96,9 @@ func (s *Store) cardPickSummary(ctx context.Context, cardID string) (CardPickRat
 func (s *Store) cardWinSummary(ctx context.Context, cardID string) (CardWinRate, error) {
 	var runs, wins int
 	if err := s.pool.QueryRow(ctx, `
-		WITH run_cards AS (
-			SELECT DISTINCT
-				events.id AS event_id,
-				COALESCE((properties->>'is_victory')::boolean, false) AS is_victory
-			FROM events
-			CROSS JOIN LATERAL jsonb_array_elements(
-				COALESCE(payload->'applicant_payload'->'run_history'->'players', '[]'::jsonb)
-			) AS player
-			CROSS JOIN LATERAL jsonb_array_elements(COALESCE(player->'deck', '[]'::jsonb)) AS card
-			WHERE category = 'RunHistory'
-				AND properties->>'run_character_ids' LIKE '%STSVWB%'
-				AND NOT COALESCE((properties->>'is_abandoned')::boolean, false)
-				AND regexp_replace(card->>'id', '^CARD\.', '') = $1
-		)
-		SELECT COUNT(*), COUNT(*) FILTER (WHERE is_victory)
-		FROM run_cards
+		SELECT
+			COALESCE((SELECT run_count FROM card_win_stats WHERE card_id = $1), 0),
+			COALESCE((SELECT win_count FROM card_win_stats WHERE card_id = $1), 0)
 	`, cardID).Scan(&runs, &wins); err != nil {
 		return CardWinRate{}, err
 	}
@@ -144,30 +119,9 @@ func (s *Store) cardWinSummary(ctx context.Context, cardID string) (CardWinRate,
 
 func (s *Store) fillCardBreakdowns(ctx context.Context, cardID string, analysis *CardAnalysis) error {
 	rows, err := s.pool.Query(ctx, `
-		WITH card_runs AS (
-			SELECT DISTINCT
-				events.id AS event_id,
-				COALESCE((properties->>'is_victory')::boolean, false) AS is_victory,
-				properties->>'run_ascension' AS ascension,
-				properties->>'run_game_mode' AS game_mode,
-				regexp_replace(char_id, '^CHARACTER\.', '') AS character_id
-			FROM events
-			CROSS JOIN LATERAL jsonb_array_elements(
-				COALESCE(payload->'applicant_payload'->'run_history'->'players', '[]'::jsonb)
-			) AS player
-			CROSS JOIN LATERAL jsonb_array_elements(COALESCE(player->'deck', '[]'::jsonb)) AS card
-			CROSS JOIN LATERAL unnest(
-				string_to_array(regexp_replace(properties->>'run_character_ids', '["\[\],]', '', 'g'), ' ')
-			) AS char_id
-			WHERE category = 'RunHistory'
-				AND properties->>'run_character_ids' LIKE '%STSVWB%'
-				AND NOT COALESCE((properties->>'is_abandoned')::boolean, false)
-				AND regexp_replace(card->>'id', '^CARD\.', '') = $1
-		)
-		SELECT character_id, ascension, game_mode, COUNT(*), COUNT(*) FILTER (WHERE is_victory)
-		FROM card_runs
-		WHERE character_id LIKE '%STSVWB_CHARACTER_%'
-		GROUP BY character_id, ascension, game_mode
+		SELECT character_id, ascension, game_mode, run_count, win_count
+		FROM card_analysis_breakdowns
+		WHERE card_id = $1
 	`, cardID)
 	if err != nil {
 		return err

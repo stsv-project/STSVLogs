@@ -408,33 +408,11 @@ func (s *Store) RunHistoryOverview(ctx context.Context) (map[string]interface{},
 
 func (s *Store) CardPickRates(ctx context.Context) ([]CardPickRate, error) {
 	rows, err := s.pool.Query(ctx, `
-		WITH choices AS (
-			SELECT
-				regexp_replace(card_choice->'card'->>'id', '^CARD\.', '') AS card_id,
-				COALESCE((card_choice->>'was_picked')::boolean, false) AS was_picked
-			FROM events
-			CROSS JOIN LATERAL jsonb_array_elements(
-				COALESCE(payload->'applicant_payload'->'run_history'->'map_point_history', '[]'::jsonb)
-			) AS act_history
-			CROSS JOIN LATERAL jsonb_array_elements(
-				COALESCE(act_history, '[]'::jsonb)
-			) AS map_point
-			CROSS JOIN LATERAL jsonb_array_elements(
-				COALESCE(map_point->'player_stats', '[]'::jsonb)
-			) AS player_stat
-			CROSS JOIN LATERAL jsonb_array_elements(
-				COALESCE(player_stat->'card_choices', '[]'::jsonb)
-			) AS card_choice
-			WHERE category = 'RunHistory'
-				AND properties->>'run_character_ids' LIKE '%STSVWB%'
-				AND regexp_replace(card_choice->'card'->>'id', '^CARD\.', '') LIKE 'STSVWB_CARD_%'
-		)
 		SELECT
 			card_id,
-			COUNT(*) AS offered_count,
-			COUNT(*) FILTER (WHERE was_picked) AS picked_count
-		FROM choices
-		GROUP BY card_id
+			offered_count,
+			picked_count
+		FROM card_pick_stats
 		ORDER BY picked_count DESC, offered_count DESC, card_id ASC
 	`)
 	if err != nil {
@@ -470,29 +448,11 @@ func (s *Store) CardPickRates(ctx context.Context) ([]CardPickRate, error) {
 
 func (s *Store) CardWinRates(ctx context.Context) ([]CardWinRate, error) {
 	rows, err := s.pool.Query(ctx, `
-		WITH run_cards AS (
-			SELECT DISTINCT
-				events.id AS event_id,
-				regexp_replace(card->>'id', '^CARD\.', '') AS card_id,
-				COALESCE((properties->>'is_victory')::boolean, false) AS is_victory
-			FROM events
-			CROSS JOIN LATERAL jsonb_array_elements(
-				COALESCE(payload->'applicant_payload'->'run_history'->'players', '[]'::jsonb)
-			) AS player
-			CROSS JOIN LATERAL jsonb_array_elements(
-				COALESCE(player->'deck', '[]'::jsonb)
-			) AS card
-			WHERE category = 'RunHistory'
-				AND properties->>'run_character_ids' LIKE '%STSVWB%'
-				AND NOT COALESCE((properties->>'is_abandoned')::boolean, false)
-				AND regexp_replace(card->>'id', '^CARD\.', '') LIKE 'STSVWB_CARD_%'
-		)
 		SELECT
 			card_id,
-			COUNT(*) AS run_count,
-			COUNT(*) FILTER (WHERE is_victory) AS win_count
-		FROM run_cards
-		GROUP BY card_id
+			run_count,
+			win_count
+		FROM card_win_stats
 		ORDER BY win_count DESC, run_count DESC, card_id ASC
 	`)
 	if err != nil {

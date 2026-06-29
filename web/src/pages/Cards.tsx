@@ -1,16 +1,15 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { get } from "../api";
 import { MetricCard, MetricGrid, PageShell, StatusBlock } from "../components/Dashboard";
 import { characterOptions, costOptions, rarityOptions, type CardMetadata, type CharacterFilter, type CostFilter, type RarityFilter } from "./cardMetadata";
+import { cardsOverviewQueryKey, fetchCardsOverview } from "./cardStatsQuery";
 import {
   mergeCardStats,
   selectVisibleCards,
   sortOptions,
   type SortKey,
 } from "./cardBrowser";
-import type { CardStatsOverview } from "../types";
 
 export default function Cards() {
   const [query, setQuery] = useState("");
@@ -19,8 +18,8 @@ export default function Cards() {
   const [costFilter, setCostFilter] = useState<CostFilter>("all");
   const [rarityFilter, setRarityFilter] = useState<RarityFilter>("all");
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["cards-overview"],
-    queryFn: () => get<CardStatsOverview>("/api/stats/cards"),
+    queryKey: cardsOverviewQueryKey,
+    queryFn: fetchCardsOverview,
     staleTime: 60_000,
   });
 
