@@ -37,6 +37,11 @@ export interface RunHistoryOverview {
   card_win_rates: CardWinRate[];
 }
 
+export interface CardStatsOverview {
+  card_pick_rates: CardPickRate[];
+  card_win_rates: CardWinRate[];
+}
+
 export interface CardPickRate {
   card_id: string;
   card_name: string;

@@ -10,7 +10,7 @@ import {
   sortOptions,
   type SortKey,
 } from "./cardBrowser";
-import type { RunHistoryOverview } from "../types";
+import type { CardStatsOverview } from "../types";
 
 export default function Cards() {
   const [query, setQuery] = useState("");
@@ -20,7 +20,8 @@ export default function Cards() {
   const [rarityFilter, setRarityFilter] = useState<RarityFilter>("all");
   const { data, isLoading, isError } = useQuery({
     queryKey: ["cards-overview"],
-    queryFn: () => get<RunHistoryOverview>("/api/stats/runs"),
+    queryFn: () => get<CardStatsOverview>("/api/stats/cards"),
+    staleTime: 60_000,
   });
 
   const cards = useMemo(() => mergeCardStats(data), [data]);

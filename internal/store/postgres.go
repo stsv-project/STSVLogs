@@ -5,13 +5,17 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Store struct {
-	pool *pgxpool.Pool
+	pool              *pgxpool.Pool
+	cardStatsMu       sync.Mutex
+	cardStatsCache    CardStatsOverview
+	cardStatsCachedAt time.Time
 }
 
 type CardPickRate struct {

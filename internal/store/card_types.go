@@ -1,5 +1,10 @@
 package store
 
+type CardStatsOverview struct {
+	CardPickRates []CardPickRate `json:"card_pick_rates"`
+	CardWinRates  []CardWinRate  `json:"card_win_rates"`
+}
+
 type CardAnalysis struct {
 	CardID             string         `json:"card_id"`
 	CardName           string         `json:"card_name"`

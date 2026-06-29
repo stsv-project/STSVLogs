@@ -1,4 +1,4 @@
-import type { CardPickRate, CardWinRate, RunHistoryOverview } from "../types";
+import type { CardPickRate, CardStatsOverview, CardWinRate } from "../types";
 import { cardMetadataById, type CardMetadata, type CharacterFilter, type CostFilter, type RarityFilter } from "./cardMetadata";
 
 export const sortOptions = {
@@ -33,7 +33,7 @@ export type CardBrowserState = {
   readonly rarityFilter: RarityFilter;
 };
 
-export function mergeCardStats(data: RunHistoryOverview | undefined): CardEntry[] {
+export function mergeCardStats(data: CardStatsOverview | undefined): CardEntry[] {
   if (!data) return [];
 
   const entries = new Map<string, CardEntry>();

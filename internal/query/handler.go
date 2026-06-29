@@ -78,6 +78,17 @@ func (h *Handler) RunHistoryOverview(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
+func (h *Handler) CardStatsOverview(w http.ResponseWriter, r *http.Request) {
+	result, err := h.Store.CardStatsOverview(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Cache-Control", "public, max-age=60")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
 func (h *Handler) RunTrend(w http.ResponseWriter, r *http.Request) {
 	days, _ := strconv.Atoi(r.URL.Query().Get("days"))
 	if days < 1 || days > 365 {
