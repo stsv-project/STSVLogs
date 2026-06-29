@@ -73,7 +73,7 @@ export default function CardAnalysis() {
       subtitle={`${data.card_id} 的奖励选择、最终牌组样本、胜率和共现卡分析。`}
     >
       <div className="page-actions">
-        <Link to="/runs" className="text-link">返回对局分析</Link>
+        <Link to="/cards" className="text-link">返回卡牌总览</Link>
       </div>
 
       <MetricGrid>
