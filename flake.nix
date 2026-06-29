@@ -8,7 +8,7 @@
   in {
     devShells.${system}.default = pkgs.mkShell {
       buildInputs = [
-        pkgs.go
+        pkgs.go_1_26
         pkgs.nodejs
       ];
     };
